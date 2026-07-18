@@ -1,0 +1,6 @@
+{
+  "name": "Buku Induk Excel LPK Nandita",
+  "description": "Aplikasi manajemen spreadsheet Excel lengkap untuk Buku Induk Siswa, Staf, Instruktur, Absensi, Keuangan, Sertifikasi, Payroll, dan Rekrutmen Kerja LPK Nandita Floating Hotel.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
