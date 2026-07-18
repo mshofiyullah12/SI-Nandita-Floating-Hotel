@@ -88,7 +88,10 @@ import {
   Receipt,
   TrendingUp,
   FileText,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Menu,
+  ChevronDown,
+  Home
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -119,6 +122,7 @@ export default function App() {
   // Custom added custom spreadsheet tabs (notes sheet, etc.)
   const [customTabs, setCustomTabs] = useState<string[]>([]);
   const [pendingWhatsApp, setPendingWhatsApp] = useState<WhatsAppNotification | null>(null);
+  const [isSheetMenuOpen, setIsSheetMenuOpen] = useState(false);
 
   // 2. Local Storage Sync
   useEffect(() => {
@@ -1146,12 +1150,29 @@ export default function App() {
       </header>
 
       {/* CORE WORK AREA */}
-      <main className="flex-1 overflow-hidden bg-white relative flex flex-col">
+      <main className="flex-1 overflow-hidden bg-white relative flex flex-col font-sans">
+        {activeSheet !== "Dashboard & Ringkasan" && currentUser?.role !== "Siswa" && (
+          <div className="bg-slate-50 border-b border-gray-250 px-6 py-2.5 flex items-center justify-between flex-shrink-0 select-none">
+            <div className="flex items-center space-x-2 text-xs text-gray-500 font-mono">
+              <Home className="w-3.5 h-3.5 text-gray-400" />
+              <span>LPK Nandita</span>
+              <span>/</span>
+              <span className="font-semibold text-slate-700">{activeSheet}</span>
+            </div>
+            <button
+              onClick={() => setActiveSheet("Dashboard & Ringkasan")}
+              className="px-3.5 py-1.5 bg-amber-400 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-xl transition-all flex items-center space-x-1.5 shadow-sm border border-amber-300"
+            >
+              <Home className="w-3.5 h-3.5 text-slate-950" />
+              <span>Kembali ke Home Dasbor</span>
+            </button>
+          </div>
+        )}
         {renderActiveSheet()}
       </main>
 
       {/* BOTTOM EXCEL TAB SHEET BAR (Pure spreadsheet workbook style) */}
-      <footer className="bg-gray-100 border-t border-gray-300 px-3 py-1 flex items-center justify-between flex-shrink-0 text-xs text-gray-600 select-none">
+      <footer className="bg-gray-100 border-t border-gray-300 px-3 py-1 flex items-center justify-between flex-shrink-0 text-xs text-gray-600 select-none relative">
         <div className="flex items-center space-x-0.5 overflow-x-auto max-w-full pb-0.5" id="sheet-selector-tabs">
           
           {/* Excel Navigation Indicator */}
@@ -1159,27 +1180,108 @@ export default function App() {
             <ChevronRight className="w-4 h-4" />
           </div>
 
-          {/* Render core sheets */}
-          {allowedCoreSheets.map((sheet) => {
-            const IconComponent = sheet.icon;
-            const isActive = activeSheet === sheet.name;
+          {/* 1. Home / Dashboard Tab */}
+          {(() => {
+            const isStudent = currentUser?.role === "Siswa";
+            const homeTabName = isStudent ? "Tagihan Saya" : "Dashboard & Ringkasan";
+            const isActive = activeSheet === homeTabName;
             return (
               <button
-                key={sheet.name}
-                id={`tab-sheet-${sheet.name.toLowerCase().replace(/[^a-z0-9]/g, "-")}`}
-                onClick={() => setActiveSheet(sheet.name)}
+                id="tab-sheet-home-dashboard"
+                onClick={() => setActiveSheet(homeTabName)}
                 style={isActive ? { borderTopColor: schoolSettings.warnaUtama, color: schoolSettings.warnaUtama } : {}}
-                className={`px-3 py-1.5 flex items-center space-x-1.5 border-r border-gray-300 font-semibold transition cursor-pointer text-[11px] ${
+                className={`px-3 py-1.5 flex items-center space-x-1.5 border-r border-gray-300 font-bold transition cursor-pointer text-[11px] ${
                   isActive 
                     ? "bg-white border-t-2 border-b border-b-transparent shadow-inner" 
                     : "hover:bg-gray-200 text-slate-500 bg-gray-100 border-b border-b-gray-300"
                 }`}
               >
-                <IconComponent className="w-3.5 h-3.5" style={isActive ? { color: schoolSettings.warnaUtama } : { color: "#94a3b8" }} />
-                <span>{sheet.name}</span>
+                <Home className="w-3.5 h-3.5" style={isActive ? { color: schoolSettings.warnaUtama } : { color: "#94a3b8" }} />
+                <span>{isStudent ? "Home: Tagihan Saya" : "Home Dasbor"}</span>
               </button>
             );
-          })}
+          })()}
+
+          {/* 2. Active Sheet Tab (If not the Home tab) */}
+          {(() => {
+            const isStudent = currentUser?.role === "Siswa";
+            const homeTabName = isStudent ? "Tagihan Saya" : "Dashboard & Ringkasan";
+            if (activeSheet === homeTabName) return null;
+            
+            // Check if it's a custom tab or core tab
+            const isCustom = customTabs.includes(activeSheet);
+            if (isCustom) return null; // Rendered below in custom tab mapping
+
+            const currentSheetObj = allowedCoreSheets.find(s => s.name === activeSheet);
+            const IconComponent = currentSheetObj ? currentSheetObj.icon : CheckSquare;
+            return (
+              <button
+                id="tab-sheet-active-sub"
+                style={{ borderTopColor: schoolSettings.warnaUtama, color: schoolSettings.warnaUtama }}
+                className="px-3 py-1.5 flex items-center space-x-1.5 border-r border-gray-300 font-bold bg-white border-t-2 border-b border-b-transparent shadow-inner text-[11px]"
+              >
+                <IconComponent className="w-3.5 h-3.5" style={{ color: schoolSettings.warnaUtama }} />
+                <span>{activeSheet}</span>
+              </button>
+            );
+          })()}
+
+          {/* 3. Popover Menu Selector for Other Sheets */}
+          <div className="relative flex-shrink-0">
+            <button
+              id="btn-sheet-menu-toggle"
+              onClick={() => setIsSheetMenuOpen(!isSheetMenuOpen)}
+              className="px-3 py-1.5 flex items-center space-x-1.5 border-r border-b border-b-gray-300 border-gray-300 bg-gray-100 hover:bg-gray-200 font-bold transition cursor-pointer text-[11px] text-slate-700"
+              title="Pilih dan buka lembar kerja lainnya"
+            >
+              <Menu className="w-3.5 h-3.5 text-slate-500" />
+              <span>Menu Sheet</span>
+              <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isSheetMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+            
+            {isSheetMenuOpen && (
+              <div 
+                className="absolute bottom-full left-0 mb-2 w-64 bg-white border border-gray-300 rounded-2xl shadow-xl py-2 z-50 max-h-[350px] overflow-y-auto animate-in fade-in slide-in-from-bottom-2 duration-150"
+                id="sheet-menu-dropdown"
+              >
+                <div className="px-3.5 py-1.5 border-b border-gray-100 text-[10px] font-bold font-mono text-slate-400 uppercase tracking-wider">
+                  Buka Lembar Kerja (Sheets)
+                </div>
+                <div className="py-1">
+                  {allowedCoreSheets.map((sheet) => {
+                    const isStudent = currentUser?.role === "Siswa";
+                    const homeTabName = isStudent ? "Tagihan Saya" : "Dashboard & Ringkasan";
+                    const isHome = sheet.name === homeTabName;
+                    const Icon = sheet.icon;
+                    const isCurrent = activeSheet === sheet.name;
+                    
+                    return (
+                      <button
+                        key={sheet.name}
+                        onClick={() => {
+                          setActiveSheet(sheet.name);
+                          setIsSheetMenuOpen(false);
+                        }}
+                        className={`w-full text-left px-3.5 py-2 text-xs flex items-center space-x-2.5 transition-colors ${
+                          isCurrent 
+                            ? "bg-slate-100 text-slate-900 font-bold" 
+                            : "hover:bg-gray-50 text-slate-600"
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5 flex-shrink-0" style={isCurrent ? { color: schoolSettings.warnaUtama } : { color: "#94a3b8" }} />
+                        <span className="truncate">{sheet.name}</span>
+                        {isHome && (
+                          <span className="ml-auto bg-amber-100 text-amber-800 text-[9px] font-bold px-1 py-0.2 rounded">
+                            Home
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Render custom added sheet tabs */}
           {customTabs.map((tabName) => {
