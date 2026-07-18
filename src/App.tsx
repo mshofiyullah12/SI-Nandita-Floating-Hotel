@@ -123,6 +123,7 @@ export default function App() {
   const [customTabs, setCustomTabs] = useState<string[]>([]);
   const [pendingWhatsApp, setPendingWhatsApp] = useState<WhatsAppNotification | null>(null);
   const [isSheetMenuOpen, setIsSheetMenuOpen] = useState(false);
+  const [addUserTrigger, setAddUserTrigger] = useState(0);
 
   // 2. Local Storage Sync
   useEffect(() => {
@@ -771,6 +772,11 @@ export default function App() {
             utangPegawai={utangPegawai}
             onSwitchSheet={(name) => setActiveSheet(name)}
             onExportExcel={handleExportAllExcel}
+            onAddUserClick={() => {
+              setActiveSheet("Data Pengguna");
+              setAddUserTrigger(prev => prev + 1);
+            }}
+            currentUserRole={currentUser?.role}
           />
         );
       case "Siswa":
@@ -871,6 +877,7 @@ export default function App() {
             onAddUser={handleAddUser}
             onUpdateUser={handleUpdateUser}
             onDeleteUser={handleDeleteUser}
+            addUserTrigger={addUserTrigger}
           />
         );
       case "Tagihan Siswa":

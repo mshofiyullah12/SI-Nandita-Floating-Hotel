@@ -26,6 +26,7 @@ interface UserAccountSheetProps {
   onAddUser: (user: UserAccount) => void;
   onUpdateUser: (user: UserAccount) => void;
   onDeleteUser: (id: string) => void;
+  addUserTrigger?: number;
 }
 
 export default function UserAccountSheet({
@@ -34,6 +35,7 @@ export default function UserAccountSheet({
   onAddUser,
   onUpdateUser,
   onDeleteUser,
+  addUserTrigger,
 }: UserAccountSheetProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
@@ -47,6 +49,12 @@ export default function UserAccountSheet({
   const [password, setPassword] = useState("");
   const [allowedTabs, setAllowedTabs] = useState<string[]>([]);
   const [selectedSiswaId, setSelectedSiswaId] = useState("");
+
+  React.useEffect(() => {
+    if (addUserTrigger && addUserTrigger > 0) {
+      handleOpenAdd();
+    }
+  }, [addUserTrigger]);
 
   const filteredUsers = userAccounts.filter(
     (u) =>

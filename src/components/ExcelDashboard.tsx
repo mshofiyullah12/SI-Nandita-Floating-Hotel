@@ -35,7 +35,8 @@ import {
   Wallet,
   ArrowUpRight,
   ArrowDownRight,
-  Calculator
+  Calculator,
+  UserPlus
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -52,6 +53,8 @@ interface ExcelDashboardProps {
   utangPegawai?: UtangPegawai[];
   onSwitchSheet: (sheetName: string) => void;
   onExportExcel?: () => void;
+  onAddUserClick?: () => void;
+  currentUserRole?: string;
 }
 
 export default function ExcelDashboard({
@@ -66,7 +69,9 @@ export default function ExcelDashboard({
   payroll = [],
   utangPegawai = [],
   onSwitchSheet,
-  onExportExcel
+  onExportExcel,
+  onAddUserClick,
+  currentUserRole
 }: ExcelDashboardProps) {
   // 1. Calculations for Siswa
   const totalSiswa = siswa.length;
@@ -212,6 +217,16 @@ export default function ExcelDashboard({
                 >
                   Manajemen Keuangan →
                 </button>
+                {onAddUserClick && currentUserRole === "Admin" && (
+                  <button 
+                    id="btn-add-user-dash"
+                    onClick={onAddUserClick}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-1.5 rounded-lg font-bold border border-indigo-500/30 transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
+                  >
+                    <UserPlus className="w-4 h-4 text-indigo-200" />
+                    <span>Tambah Pengguna</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
