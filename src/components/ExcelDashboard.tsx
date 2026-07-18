@@ -211,6 +211,14 @@ export default function ExcelDashboard({
                   Buku Induk Siswa →
                 </button>
                 <button 
+                  id="btn-goto-laporan"
+                  onClick={() => onSwitchSheet("Laporan Keuangan")} 
+                  className="bg-teal-600 hover:bg-teal-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
+                >
+                  <BarChart3 className="w-4 h-4 text-teal-200" />
+                  <span>Laporan Keuangan →</span>
+                </button>
+                <button 
                   id="btn-goto-finance"
                   onClick={() => onSwitchSheet("Keuangan & Piutang")} 
                   className="bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs px-3 py-1.5 rounded-lg font-bold transition-all duration-300 shadow-md hover:scale-105"

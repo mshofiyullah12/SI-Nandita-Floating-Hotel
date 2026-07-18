@@ -1,23 +1,44 @@
 import React from "react";
-import { TagihanSiswa, KeuanganSiswa, UserAccount } from "../types";
+import { TagihanSiswa, KeuanganSiswa, UserAccount, JobRegister, SchoolSettings, Siswa } from "../types";
 import { formatRupiah } from "../utils";
-import { Receipt, Wallet, AlertCircle, CheckCircle2, CreditCard, Building } from "lucide-react";
+import { 
+  Receipt, 
+  Wallet, 
+  AlertCircle, 
+  CheckCircle2, 
+  CreditCard, 
+  Building, 
+  Briefcase, 
+  Globe, 
+  Calendar, 
+  BadgeCheck, 
+  Compass,
+  BookOpen
+} from "lucide-react";
 
 interface SiswaTagihanSheetProps {
   currentUser: UserAccount;
   tagihanList: TagihanSiswa[];
   keuangan: KeuanganSiswa[];
+  jobs?: JobRegister[];
+  schoolSettings?: SchoolSettings;
+  siswaList?: Siswa[];
 }
 
 export default function SiswaTagihanSheet({
   currentUser,
   tagihanList,
   keuangan,
+  jobs = [],
+  schoolSettings,
+  siswaList = [],
 }: SiswaTagihanSheetProps) {
   // 1. Get student profile & financial data
   const studentId = currentUser.siswaId || "";
+  const mySiswa = siswaList.find((s) => s.id === studentId);
   const myKeuangan = keuangan.find((k) => k.siswaId === studentId);
   const myTagihanList = tagihanList.filter((t) => t.siswaId === studentId);
+  const myJobs = jobs.filter((j) => j.siswaId === studentId);
 
   // 2. Calculations for aggregated financial summary
   const programBiaya = myKeuangan ? myKeuangan.totalBiaya : 0;
@@ -146,6 +167,130 @@ export default function SiswaTagihanSheet({
         </div>
       </div>
 
+      {/* SECTION AKADEMIK & NILAI */}
+      {mySiswa && (mySiswa.nilaiHousekeeping || mySiswa.nilaiFBService || mySiswa.nilaiCulinaryArt || mySiswa.nilaiBahasaInggris || mySiswa.nilaiBahasaTurki || mySiswa.predikatKelulusan) && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-6" id="siswa-academic-grades-card">
+          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <h4 className="text-xs font-bold font-mono text-slate-800 uppercase tracking-wider flex items-center">
+              <BookOpen className="w-4 h-4 text-[#001f3f] mr-1.5" />
+              <span>🎓 Nilai Akademik & Predikat Kelulusan Saya</span>
+            </h4>
+            {mySiswa.predikatKelulusan && (
+              <span className="text-[10px] bg-[#001f3f] text-white font-mono font-bold px-2.5 py-0.5 rounded-full border border-[#001f3f] uppercase">
+                {mySiswa.predikatKelulusan}
+              </span>
+            )}
+          </div>
+
+          <div className="p-5">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-3 text-center">
+                <span className="block text-slate-400 text-[9px] uppercase tracking-wider font-mono">Housekeeping</span>
+                <span className="font-extrabold text-[#001f3f] text-sm mt-1 block">{mySiswa.nilaiHousekeeping || "-"}</span>
+              </div>
+              <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-3 text-center">
+                <span className="block text-slate-400 text-[9px] uppercase tracking-wider font-mono">F & B Service</span>
+                <span className="font-extrabold text-[#001f3f] text-sm mt-1 block">{mySiswa.nilaiFBService || "-"}</span>
+              </div>
+              <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-3 text-center">
+                <span className="block text-slate-400 text-[9px] uppercase tracking-wider font-mono">Culinary Art</span>
+                <span className="font-extrabold text-[#001f3f] text-sm mt-1 block">{mySiswa.nilaiCulinaryArt || "-"}</span>
+              </div>
+              <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-3 text-center">
+                <span className="block text-slate-400 text-[9px] uppercase tracking-wider font-mono">Bahasa Inggris</span>
+                <span className="font-extrabold text-[#001f3f] text-sm mt-1 block">{mySiswa.nilaiBahasaInggris || "-"}</span>
+              </div>
+              <div className="bg-slate-50/50 border border-slate-100 rounded-xl p-3 text-center">
+                <span className="block text-slate-400 text-[9px] uppercase tracking-wider font-mono">Bahasa Turki</span>
+                <span className="font-extrabold text-[#001f3f] text-sm mt-1 block">{mySiswa.nilaiBahasaTurki || "-"}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SECTION STATUS PEREKRUTAN */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-6" id="siswa-recruitment-status-card">
+        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+          <h4 className="text-xs font-bold font-mono text-slate-800 uppercase tracking-wider flex items-center">
+            <Briefcase className="w-4 h-4 text-[#001f3f] mr-1.5" />
+            <span>📋 Status Perekrutan & Penyaluran Kerja</span>
+          </h4>
+          <span className="text-[10px] bg-indigo-50 text-indigo-700 font-mono font-bold px-2.5 py-0.5 rounded-full border border-indigo-100 uppercase">
+            {myJobs.length} Pilihan Karir
+          </span>
+        </div>
+
+        <div className="p-5">
+          {myJobs.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {myJobs.map((j) => (
+                <div key={j.id} className="border border-slate-100 rounded-xl p-4 bg-slate-50/30 hover:bg-slate-50/70 transition-all flex flex-col justify-between" id={`recruitment-item-${j.id}`}>
+                  <div>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <span className="text-[10px] bg-slate-100 text-slate-600 font-mono font-bold px-2 py-0.5 rounded border border-slate-200">
+                          {j.lokasiTipe}
+                        </span>
+                        <h5 className="font-bold text-slate-900 text-sm mt-1.5">{j.namaPerusahaan}</h5>
+                        <p className="text-xs text-slate-500 font-semibold">{j.posisi}</p>
+                      </div>
+                      
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black shadow-xs ${
+                        j.status === "Berangkat" 
+                          ? "bg-indigo-600 text-white" 
+                          : j.status === "Lolos" 
+                          ? "bg-emerald-100 text-emerald-800 border border-emerald-200" 
+                          : j.status === "Interview" 
+                          ? "bg-amber-100 text-amber-800 border border-amber-200" 
+                          : j.status === "Ditolak" 
+                          ? "bg-rose-100 text-rose-800 border border-rose-200" 
+                          : "bg-slate-100 text-slate-700 border border-slate-200"
+                      }`}>
+                        {j.status === "Berangkat" && <Compass className="w-3.5 h-3.5 mr-1 animate-spin" style={{ animationDuration: '3s' }} />}
+                        {j.status === "Lolos" && <BadgeCheck className="w-3.5 h-3.5 mr-1" />}
+                        {j.status === "Interview" && <Calendar className="w-3.5 h-3.5 mr-1" />}
+                        {j.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mt-4 pt-3 border-t border-slate-100 text-[11px] text-slate-500">
+                      <div>
+                        <span className="block text-slate-450 text-[9px] uppercase tracking-wider font-mono">Tujuan Kerja</span>
+                        <span className="font-bold text-slate-800 flex items-center mt-0.5">
+                          <Globe className="w-3.5 h-3.5 text-slate-400 mr-1 flex-shrink-0" />
+                          {j.negaraKota}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="block text-slate-450 text-[9px] uppercase tracking-wider font-mono">Estimasi Gaji</span>
+                        <span className="font-bold text-slate-800 flex items-center mt-0.5">
+                          <Wallet className="w-3.5 h-3.5 text-slate-400 mr-1 flex-shrink-0" />
+                          {j.gajiPerkiraan}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 text-[10px] font-mono text-slate-400 flex justify-between items-center">
+                    <span>Terdaftar: {j.tanggalDaftar}</span>
+                    <span className="text-[9px] text-[#001f3f] font-sans font-bold uppercase tracking-wider">ID: {j.id}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 px-4 border border-dashed border-slate-200 rounded-xl bg-slate-50/20">
+              <Briefcase className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <h5 className="font-bold text-slate-700 text-xs uppercase tracking-wide">Proses Penyaluran Aktif Belum Ada</h5>
+              <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
+                Anda belum terdaftar dalam antrean seleksi lowongan manapun saat ini. Silakan hubungi bagian Admin LPK atau divisi Penyaluran Kerja (Job Placement Center) untuk mengajukan berkas ke lowongan hotel/kapal pesiar mitra resmi kami.
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Main Billing Table List */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mt-6">
         <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
@@ -257,17 +402,17 @@ export default function SiswaTagihanSheet({
           </div>
           <div>
             <h4 className="text-xs font-bold text-slate-900 font-sans uppercase tracking-wide">
-              ℹ️ Cara Pembayaran Tagihan LPK Nandita
+              ℹ️ Cara Pembayaran Tagihan {schoolSettings?.namaLembaga || "LPK Nandita"}
             </h4>
             <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-              Untuk melakukan cicilan atau pelunasan, silakan mengunjungi loket keuangan kampus LPK Nandita atau transfer ke rekening resmi Bank BCA LPK Nandita. Setelah transfer, harap serahkan bukti pembayaran ke bagian Administrasi & Keuangan untuk diperbarui di sistem.
+              Untuk melakukan cicilan atau pelunasan, silakan mengunjungi loket keuangan kampus {schoolSettings?.namaLembaga || "LPK Nandita"} atau transfer ke rekening resmi {schoolSettings?.bankNama || "Bank Mandiri"} kami. Setelah transfer, harap serahkan bukti pembayaran ke bagian Administrasi & Keuangan untuk diperbarui di sistem.
             </p>
           </div>
         </div>
         <div className="flex-shrink-0">
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-xs text-center font-mono text-[11px] text-[#001f3f] font-semibold">
-            BCA: 018-912-8800 <br />
-            <span className="text-[9px] text-slate-400 font-sans block mt-0.5 font-normal">A.N LPK NANDITA INDONESIA</span>
+            {schoolSettings?.bankNama || "Bank Mandiri"}: {schoolSettings?.bankRekening || "142-00-1234567-8"} <br />
+            <span className="text-[9px] text-slate-400 font-sans block mt-0.5 font-normal">A.N {schoolSettings?.bankAtasNama || "LPK NANDITA FLOATING HOTEL"}</span>
           </div>
         </div>
       </div>

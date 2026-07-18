@@ -958,6 +958,9 @@ export default function App() {
             currentUser={currentUser!}
             tagihanList={tagihan}
             keuangan={keuangan}
+            jobs={jobs}
+            schoolSettings={schoolSettings}
+            siswaList={siswa}
           />
         );
       case "Riwayat Pembayaran":

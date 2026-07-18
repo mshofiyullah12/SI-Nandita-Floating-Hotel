@@ -38,7 +38,10 @@ export const initialSchoolSettings: SchoolSettings = {
   direkturNip: "NIP. 19820512 201012 2 001",
   logoUrl: "", // We can render a fallback custom icon/logo in the UI
   warnaUtama: "#001f3f", // Navy-900 (Bento Grid Theme)
-  akreditasi: "Terakreditasi A (Sangat Baik) - LA-LPK"
+  akreditasi: "Terakreditasi A (Sangat Baik) - LA-LPK",
+  bankNama: "Bank Mandiri",
+  bankRekening: "142-00-1234567-8",
+  bankAtasNama: "LPK NANDITA FLOATING HOTEL"
 };
 
 export const initialSiswa: Siswa[] = [

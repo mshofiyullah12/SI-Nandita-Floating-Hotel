@@ -5,7 +5,7 @@
 
 import React, { useState, useRef } from "react";
 import { SchoolSettings } from "../types";
-import { Save, RefreshCw, HelpCircle, Check, Palette, Upload, Trash2, Image } from "lucide-react";
+import { Save, RefreshCw, HelpCircle, Check, Palette, Upload, Trash2, Image, CreditCard } from "lucide-react";
 import NanditaLogo from "./NanditaLogo";
 
 interface SettingsSheetProps {
@@ -331,11 +331,56 @@ export default function SettingsSheet({
             </p>
           </div>
 
-          {/* Section 4: Visual App Style Customizer */}
+          {/* Section 4: Metode Pembayaran Transfer Bank */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4" id="settings-bank-transfer-card">
+            <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center">
+              <CreditCard className="w-4 h-4 mr-1.5 text-teal-700" />
+              <span>4. Metode Pembayaran Transfer Bank (Informasi Rekening)</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Nama Bank</label>
+                <input
+                  type="text"
+                  value={formData.bankNama || ""}
+                  onChange={(e) => setFormData({ ...formData, bankNama: e.target.value })}
+                  placeholder="e.g. Bank Mandiri, BCA, BRI"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-xs focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Nomor Rekening</label>
+                <input
+                  type="text"
+                  value={formData.bankRekening || ""}
+                  onChange={(e) => setFormData({ ...formData, bankRekening: e.target.value })}
+                  placeholder="e.g. 142-00-1234567-8"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-xs focus:outline-none font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Pemilik Rekening (Atas Nama)</label>
+                <input
+                  type="text"
+                  value={formData.bankAtasNama || ""}
+                  onChange={(e) => setFormData({ ...formData, bankAtasNama: e.target.value })}
+                  placeholder="e.g. LPK NANDITA FLOATING HOTEL"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-xs focus:outline-none"
+                />
+              </div>
+            </div>
+
+            <p className="text-[11px] text-gray-500 italic">
+              * Detail rekening ini akan ditampilkan pada halaman tagihan di akun Siswa sebagai tujuan transfer pembayaran resmi.
+            </p>
+          </div>
+
+          {/* Section 5: Visual App Style Customizer */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center">
               <Palette className="w-4 h-4 mr-1 text-teal-700" />
-              4. Visual & Tema Aplikasi
+              5. Visual & Tema Aplikasi
             </h3>
 
             <div>

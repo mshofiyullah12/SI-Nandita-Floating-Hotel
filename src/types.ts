@@ -73,6 +73,13 @@ export interface Siswa {
   tinggiBadan?: string;
   beratBadan?: string;
   catatanKesehatan?: string;
+  // Academic grades and graduation predicate
+  nilaiHousekeeping?: string;
+  nilaiFBService?: string;
+  nilaiCulinaryArt?: string;
+  nilaiBahasaInggris?: string;
+  nilaiBahasaTurki?: string;
+  predikatKelulusan?: string;
 }
 
 export interface Staff {
@@ -173,6 +180,10 @@ export interface SchoolSettings {
   logoUrl: string; // SVG data or image URL
   warnaUtama: string; // Primary hex color code
   akreditasi?: string; // LPK Accreditation info
+  // Bank transfer details
+  bankNama?: string;
+  bankRekening?: string;
+  bankAtasNama?: string;
 }
 
 export interface UserAccount {

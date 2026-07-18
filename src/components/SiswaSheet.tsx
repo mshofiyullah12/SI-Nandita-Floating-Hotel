@@ -60,7 +60,14 @@ export default function SiswaSheet({
     noHpOrangTua: "",
     tinggiBadan: "",
     beratBadan: "",
-    catatanKesehatan: ""
+    catatanKesehatan: "",
+    // grades & predicate
+    nilaiHousekeeping: "",
+    nilaiFBService: "",
+    nilaiCulinaryArt: "",
+    nilaiBahasaInggris: "",
+    nilaiBahasaTurki: "",
+    predikatKelulusan: ""
   });
 
   // Filter & Search logic
@@ -104,7 +111,14 @@ export default function SiswaSheet({
       noHpOrangTua: "",
       tinggiBadan: "",
       beratBadan: "",
-      catatanKesehatan: ""
+      catatanKesehatan: "",
+      // grades & predicate
+      nilaiHousekeeping: "",
+      nilaiFBService: "",
+      nilaiCulinaryArt: "",
+      nilaiBahasaInggris: "",
+      nilaiBahasaTurki: "",
+      predikatKelulusan: ""
     });
     setIsFormOpen(true);
   };
@@ -123,7 +137,14 @@ export default function SiswaSheet({
       noHpOrangTua: siswaItem.noHpOrangTua || "",
       tinggiBadan: siswaItem.tinggiBadan || "",
       beratBadan: siswaItem.beratBadan || "",
-      catatanKesehatan: siswaItem.catatanKesehatan || ""
+      catatanKesehatan: siswaItem.catatanKesehatan || "",
+      // grades & predicate
+      nilaiHousekeeping: siswaItem.nilaiHousekeeping || "",
+      nilaiFBService: siswaItem.nilaiFBService || "",
+      nilaiCulinaryArt: siswaItem.nilaiCulinaryArt || "",
+      nilaiBahasaInggris: siswaItem.nilaiBahasaInggris || "",
+      nilaiBahasaTurki: siswaItem.nilaiBahasaTurki || "",
+      predikatKelulusan: siswaItem.predikatKelulusan || ""
     });
     setIsFormOpen(true);
   };
@@ -160,7 +181,14 @@ export default function SiswaSheet({
         noHpOrangTua: formData.noHpOrangTua || "",
         tinggiBadan: formData.tinggiBadan || "",
         beratBadan: formData.beratBadan || "",
-        catatanKesehatan: formData.catatanKesehatan || ""
+        catatanKesehatan: formData.catatanKesehatan || "",
+        // grades & predicate
+        nilaiHousekeeping: formData.nilaiHousekeeping || "",
+        nilaiFBService: formData.nilaiFBService || "",
+        nilaiCulinaryArt: formData.nilaiCulinaryArt || "",
+        nilaiBahasaInggris: formData.nilaiBahasaInggris || "",
+        nilaiBahasaTurki: formData.nilaiBahasaTurki || "",
+        predikatKelulusan: formData.predikatKelulusan || ""
       };
       onAddSiswa(newRecord);
     } else {
@@ -805,6 +833,87 @@ export default function SiswaSheet({
                   />
                 </div>
               </div>
+
+              {/* SECTION 5: NILAI MATA PELAJARAN & PREDIKAT KELULUSAN */}
+              <div className="pt-3 border-t border-gray-200" id="form-section-grades">
+                <h4 className="text-xs font-bold text-teal-800 uppercase tracking-wider mb-3 flex items-center">
+                  <BookOpen className="w-3.5 h-3.5 mr-1 text-teal-700" />
+                  <span>5. Nilai Akademik & Predikat Kelulusan</span>
+                </h4>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Housekeeping</label>
+                    <input
+                      type="text"
+                      value={formData.nilaiHousekeeping || ""}
+                      onChange={(e) => setFormData({ ...formData, nilaiHousekeeping: e.target.value })}
+                      placeholder="e.g. 85 / A"
+                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">F & B Service</label>
+                    <input
+                      type="text"
+                      value={formData.nilaiFBService || ""}
+                      onChange={(e) => setFormData({ ...formData, nilaiFBService: e.target.value })}
+                      placeholder="e.g. 90 / A+"
+                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Culinary Art</label>
+                    <input
+                      type="text"
+                      value={formData.nilaiCulinaryArt || ""}
+                      onChange={(e) => setFormData({ ...formData, nilaiCulinaryArt: e.target.value })}
+                      placeholder="e.g. 88 / A"
+                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Bahasa Inggris</label>
+                    <input
+                      type="text"
+                      value={formData.nilaiBahasaInggris || ""}
+                      onChange={(e) => setFormData({ ...formData, nilaiBahasaInggris: e.target.value })}
+                      placeholder="e.g. 95 / A+"
+                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Bahasa Turki</label>
+                    <input
+                      type="text"
+                      value={formData.nilaiBahasaTurki || ""}
+                      onChange={(e) => setFormData({ ...formData, nilaiBahasaTurki: e.target.value })}
+                      placeholder="e.g. 82 / B"
+                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Predikat Kelulusan</label>
+                    <select
+                      value={formData.predikatKelulusan || ""}
+                      onChange={(e) => setFormData({ ...formData, predikatKelulusan: e.target.value })}
+                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none bg-white"
+                    >
+                      <option value="">-- Pilih Predikat --</option>
+                      <option value="Dengan Pujian (Cum Laude)">Dengan Pujian (Cum Laude)</option>
+                      <option value="Sangat Memuaskan">Sangat Memuaskan</option>
+                      <option value="Memuaskan">Memuaskan</option>
+                      <option value="Lulus">Lulus</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
             </form>
 
             <div className="p-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-2">
@@ -1016,6 +1125,46 @@ export default function SiswaSheet({
                           <td className="w-1/3 font-medium text-gray-500">4. Status Peserta Didik</td>
                           <td className="w-2/3">
                             <span className="font-bold text-gray-900">{detailSiswa.status}</span>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Section E: Hasil Akademik */}
+                  <div>
+                    <h3 className="font-bold font-serif border-b border-gray-400 pb-1 text-teal-950 mb-3 uppercase tracking-wide flex items-center">
+                      <span className="bg-teal-100 text-teal-900 px-1.5 py-0.5 rounded text-[10px] mr-1.5 font-sans">E</span>
+                      Nilai Mata Pelajaran & Predikat Kelulusan
+                    </h3>
+                    <table className="w-full border-collapse">
+                      <tbody>
+                        <tr className="border-b border-gray-200 py-1.5 flex">
+                          <td className="w-1/3 font-medium text-gray-500">1. Housekeeping</td>
+                          <td className="w-2/3 font-semibold text-gray-800">{detailSiswa.nilaiHousekeeping || "-"}</td>
+                        </tr>
+                        <tr className="border-b border-gray-200 py-1.5 flex">
+                          <td className="w-1/3 font-medium text-gray-500">2. F & B Service</td>
+                          <td className="w-2/3 font-semibold text-gray-800">{detailSiswa.nilaiFBService || "-"}</td>
+                        </tr>
+                        <tr className="border-b border-gray-200 py-1.5 flex">
+                          <td className="w-1/3 font-medium text-gray-500">3. Culinary Art</td>
+                          <td className="w-2/3 font-semibold text-gray-800">{detailSiswa.nilaiCulinaryArt || "-"}</td>
+                        </tr>
+                        <tr className="border-b border-gray-200 py-1.5 flex">
+                          <td className="w-1/3 font-medium text-gray-500">4. Bahasa Inggris</td>
+                          <td className="w-2/3 font-semibold text-gray-800">{detailSiswa.nilaiBahasaInggris || "-"}</td>
+                        </tr>
+                        <tr className="border-b border-gray-200 py-1.5 flex">
+                          <td className="w-1/3 font-medium text-gray-500">5. Bahasa Turki</td>
+                          <td className="w-2/3 font-semibold text-gray-800">{detailSiswa.nilaiBahasaTurki || "-"}</td>
+                        </tr>
+                        <tr className="py-1.5 flex">
+                          <td className="w-1/3 font-medium text-gray-500">6. Predikat Kelulusan</td>
+                          <td className="w-2/3">
+                            <span className="font-extrabold text-teal-800 uppercase text-[11px] bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                              {detailSiswa.predikatKelulusan || "SEDANG MENEMPUH PENDIDIKAN"}
+                            </span>
                           </td>
                         </tr>
                       </tbody>
