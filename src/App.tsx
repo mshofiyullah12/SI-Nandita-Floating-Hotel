@@ -44,6 +44,7 @@ import {
   defaultKatPengeluaran
 } from "./defaultData";
 import ExcelDashboard from "./components/ExcelDashboard";
+import { exportAllToExcel } from "./utils/excelExport";
 import SiswaSheet from "./components/SiswaSheet";
 import StaffSheet from "./components/StaffSheet";
 import AbsensiSheet from "./components/AbsensiSheet";
@@ -60,8 +61,12 @@ import TagihanSiswaSheet from "./components/TagihanSiswaSheet";
 import PendapatanPengeluaranSheet from "./components/PendapatanPengeluaranSheet";
 import UtangPegawaiSheet from "./components/UtangPegawaiSheet";
 import LaporanKeuanganSheet from "./components/LaporanKeuanganSheet";
+import SiswaTagihanSheet from "./components/SiswaTagihanSheet";
+import SiswaRiwayatSheet from "./components/SiswaRiwayatSheet";
 import WhatsAppModal from "./components/WhatsAppModal";
+import GoogleSheetsSync from "./components/GoogleSheetsSync";
 import { WhatsAppNotification } from "./utils/whatsapp";
+import NanditaLogo from "./components/NanditaLogo";
 
 import { 
   BarChart2, 
@@ -82,7 +87,8 @@ import {
   Shield,
   Receipt,
   TrendingUp,
-  FileText
+  FileText,
+  FileSpreadsheet
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -137,7 +143,13 @@ export default function App() {
     const storedJenisPendapatan = localStorage.getItem("lpk_jenis_pendapatan");
     const storedKatPengeluaran = localStorage.getItem("lpk_kat_pengeluaran");
 
-    if (storedSettings) setSchoolSettings(JSON.parse(storedSettings));
+    if (storedSettings) {
+      const parsed = JSON.parse(storedSettings);
+      if (!parsed.akreditasi) {
+        parsed.akreditasi = "Terakreditasi A (Sangat Baik) - LA-LPK";
+      }
+      setSchoolSettings(parsed);
+    }
     if (storedSiswa) setSiswa(JSON.parse(storedSiswa));
     if (storedStaff) setStaff(JSON.parse(storedStaff));
     if (storedAbsensi) setAbsensi(JSON.parse(storedAbsensi));
@@ -349,7 +361,9 @@ export default function App() {
             nama: st.nama,
             kategori: st.role === StaffRole.Instruktur ? "Instruktur" : "Staf",
             status: AbsensiStatus.Hadir,
-            keterangan: "Hadir Otomatis"
+            keterangan: "Hadir Otomatis",
+            jamMasuk: "08:00",
+            jamSelesai: "12:00"
           });
         }
       });
@@ -428,6 +442,22 @@ export default function App() {
 
     setKeuangan(updatedKeuangan);
     saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments);
+  };
+
+  const handleResetPayments = () => {
+    const emptyPayments: PembayaranLog[] = [];
+    setPembayaranLog(emptyPayments);
+
+    const updatedKeuangan = keuangan.map(acc => ({
+      ...acc,
+      totalBayar: 0,
+      piutang: acc.totalBiaya,
+      statusBayar: "Belum Bayar" as const,
+      pembayaranTerakhir: "-"
+    }));
+
+    setKeuangan(updatedKeuangan);
+    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, emptyPayments);
   };
 
   const handleUpdateBiayaSiswa = (keuanganSiswaId: string, newTotalBiaya: number) => {
@@ -702,6 +732,23 @@ export default function App() {
     }
   };
 
+  const handleExportAllExcel = () => {
+    exportAllToExcel({
+      siswa,
+      staff,
+      absensi,
+      keuangan,
+      tagihan,
+      payroll,
+      jobs,
+      utangList: utangPegawai,
+      pendapatanLain,
+      pengeluaranKas,
+      pembayaranLog,
+      namaLembaga: schoolSettings.namaLembaga
+    });
+  };
+
   // 4. Render Active Sheet Component
   const renderActiveSheet = () => {
     switch (activeSheet) {
@@ -713,7 +760,13 @@ export default function App() {
             absensi={absensi}
             keuangan={keuangan}
             jobs={jobs}
+            pembayaranLog={pembayaranLog}
+            pendapatanLain={pendapatanLain}
+            pengeluaranKas={pengeluaranKas}
+            payroll={payroll}
+            utangPegawai={utangPegawai}
             onSwitchSheet={(name) => setActiveSheet(name)}
+            onExportExcel={handleExportAllExcel}
           />
         );
       case "Siswa":
@@ -810,6 +863,7 @@ export default function App() {
         return (
           <UserAccountSheet
             userAccounts={userAccounts}
+            siswaList={siswa}
             onAddUser={handleAddUser}
             onUpdateUser={handleUpdateUser}
             onDeleteUser={handleDeleteUser}
@@ -843,6 +897,7 @@ export default function App() {
             onAddKatPengeluaran={handleAddKatPengeluaran}
             onDeleteKatPengeluaran={handleDeleteKatPengeluaran}
             onTriggerWhatsApp={(notif) => setPendingWhatsApp(notif)}
+            onResetPembayaranLog={handleResetPayments}
           />
         );
       case "Utang Pegawai":
@@ -872,6 +927,34 @@ export default function App() {
             settings={schoolSettings}
             onUpdateSettings={handleUpdateSettings}
             onResetToDefault={handleResetToDefault}
+          />
+        );
+      case "Integrasi Google Sheets":
+        return (
+          <GoogleSheetsSync
+            siswa={siswa}
+            staff={staff}
+            absensi={absensi}
+            keuangan={keuangan}
+            pendapatanLain={pendapatanLain}
+            pengeluaranKas={pengeluaranKas}
+            tagihan={tagihan}
+          />
+        );
+      case "Tagihan Saya":
+        return (
+          <SiswaTagihanSheet
+            currentUser={currentUser!}
+            tagihanList={tagihan}
+            keuangan={keuangan}
+          />
+        );
+      case "Riwayat Pembayaran":
+        return (
+          <SiswaRiwayatSheet
+            currentUser={currentUser!}
+            pembayaranLog={pembayaranLog}
+            keuangan={keuangan}
           />
         );
       default:
@@ -910,13 +993,28 @@ export default function App() {
     { name: "Payroll Gaji", icon: Coins },
     { name: "Lowongan / Job", icon: Briefcase },
     { name: "Laporan Keuangan", icon: FileText },
+    { name: "Integrasi Google Sheets", icon: FileSpreadsheet },
     { name: "Data Pengguna", icon: Shield },
-    { name: "Pengaturan", icon: Settings2 }
+    { name: "Pengaturan", icon: Settings2 },
+    // Student specific tabs
+    { name: "Tagihan Saya", icon: Receipt },
+    { name: "Riwayat Pembayaran", icon: Coins }
   ];
 
   // Filter sheets list based on logged-in user role or custom permitted tabs
   const allowedCoreSheets = coreSheets.filter(sheet => {
     if (!currentUser) return false;
+    
+    // Siswa role can ONLY see student-specific tabs
+    if (currentUser.role === "Siswa") {
+      return ["Tagihan Saya", "Riwayat Pembayaran"].includes(sheet.name);
+    }
+    
+    // Other roles CANNOT see student-specific tabs
+    if (["Tagihan Saya", "Riwayat Pembayaran"].includes(sheet.name)) {
+      return false;
+    }
+
     // Admin has full access to everything
     if (currentUser.role === "Admin") return true;
     
@@ -954,12 +1052,15 @@ export default function App() {
     return (
       <LoginView
         userAccounts={userAccounts}
+        logoUrl={schoolSettings.logoUrl}
         onLogin={(user) => {
           setCurrentUser(user);
           setIsLoggedIn(true);
           // Set first available allowed sheet
           if (user.role === "Instruktur") {
             setActiveSheet("Absensi Siswa");
+          } else if (user.role === "Siswa") {
+            setActiveSheet("Tagihan Saya");
           } else if (user.allowedTabs && user.allowedTabs.length > 0) {
             setActiveSheet(user.allowedTabs[0]);
           } else {
@@ -977,10 +1078,9 @@ export default function App() {
       <header className="text-white flex-shrink-0 flex flex-col md:flex-row items-center justify-between px-6 py-4 border-b border-white/10" style={{ backgroundColor: schoolSettings.warnaUtama }}>
         <div className="flex items-center space-x-4">
           
-          {/* Stunning Crisp SVG Logo - representation of floating hotel ship helm */}
-          <div className="w-14 h-14 bg-white/10 backdrop-blur border-2 border-amber-400 rounded-xl flex items-center justify-center shadow-lg relative flex-shrink-0">
-            <Anchor className="w-6 h-6 text-amber-400 absolute opacity-30" />
-            <Ship className="w-8 h-8 text-white relative z-10 animate-bounce" style={{ animationDuration: "3s" }} />
+          {/* Stunning Crisp SVG Logo */}
+          <div className="flex-shrink-0">
+            <NanditaLogo variant="icon" height={56} logoUrl={schoolSettings.logoUrl} />
           </div>
 
           <div className="text-left">
@@ -1023,7 +1123,9 @@ export default function App() {
           <div className="hidden lg:flex items-center space-x-4 border-l border-white/20 pl-4">
             <div className="text-right">
               <span className="text-[10px] text-white/75 uppercase tracking-wider block">Akreditasi</span>
-              <span className="text-xs font-bold text-amber-400 font-sans block">Grade A</span>
+              <span className="text-xs font-bold text-amber-400 font-sans block max-w-[200px] truncate" title={schoolSettings.akreditasi || "Grade A"}>
+                {schoolSettings.akreditasi || "Grade A"}
+              </span>
             </div>
             <div className="h-8 w-px bg-white/20"></div>
             <div className="text-right">

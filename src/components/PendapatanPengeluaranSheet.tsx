@@ -13,7 +13,8 @@ import {
   Coins, 
   CheckCircle2, 
   Calendar,
-  Layers
+  Layers,
+  RotateCcw
 } from "lucide-react";
 import { formatIncomeNotification, WhatsAppNotification } from "../utils/whatsapp";
 
@@ -37,6 +38,7 @@ interface PendapatanPengeluaranSheetProps {
   onDeleteJenisPendapatan: (category: string) => void;
   onDeleteKatPengeluaran: (category: string) => void;
   onTriggerWhatsApp?: (notif: WhatsAppNotification) => void;
+  onResetPembayaranLog?: () => void;
 }
 
 export default function PendapatanPengeluaranSheet({
@@ -53,7 +55,8 @@ export default function PendapatanPengeluaranSheet({
   onAddKatPengeluaran,
   onDeleteJenisPendapatan,
   onDeleteKatPengeluaran,
-  onTriggerWhatsApp
+  onTriggerWhatsApp,
+  onResetPembayaranLog
 }: PendapatanPengeluaranSheetProps) {
   // Tab states
   const [activeSubTab, setActiveSubTab] = useState<"pendapatan" | "pengeluaran" | "riwayat">("pendapatan");
@@ -326,14 +329,47 @@ export default function PendapatanPengeluaranSheet({
             </button>
           </div>
         ) : (
-          <button
-            id="btn-print-riwayat"
-            onClick={handlePrintHistory}
-            className="mt-4 md:mt-0 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center w-max"
-          >
-            <Printer className="w-4 h-4 mr-1.5 text-white" />
-            Cetak Riwayat Kas Masuk
-          </button>
+          <div className="mt-4 md:mt-0 flex items-center space-x-2">
+            <button
+              id="btn-reset-riwayat-filters"
+              onClick={() => {
+                setSearchQuery("");
+                setCatFilter("Semua");
+              }}
+              className="px-3.5 py-2 border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 font-bold text-xs rounded-xl shadow-sm transition flex items-center"
+              title="Reset Semua Pencarian & Filter Kategori"
+            >
+              <RotateCcw className="w-4 h-4 mr-1.5 text-slate-400" />
+              Reset Filter
+            </button>
+            {onResetPembayaranLog && (
+              <button
+                id="btn-reset-pembayaran-data"
+                onClick={() => {
+                  if (
+                    confirm(
+                      "Apakah Anda yakin ingin me-reset (menghapus) seluruh data riwayat pembayaran siswa?\n\nTindakan ini akan mengosongkan semua log kuitansi pembayaran dan mengembalikan sisa piutang siswa ke nominal tagihan semula."
+                    )
+                  ) {
+                    onResetPembayaranLog();
+                  }
+                }}
+                className="px-3.5 py-2 border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-750 font-bold text-xs rounded-xl shadow-sm transition flex items-center"
+                title="Hapus / Reset Seluruh Data Pembayaran Siswa"
+              >
+                <Trash2 className="w-4 h-4 mr-1.5 text-rose-500" />
+                Reset Data Pembayaran
+              </button>
+            )}
+            <button
+              id="btn-print-riwayat"
+              onClick={handlePrintHistory}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center w-max"
+            >
+              <Printer className="w-4 h-4 mr-1.5 text-white" />
+              Cetak Riwayat Kas Masuk
+            </button>
+          </div>
         )}
       </div>
 

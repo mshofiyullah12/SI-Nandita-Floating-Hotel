@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { ShieldCheck, Eye, EyeOff, Key, UserCheck, Ship, Anchor } from "lucide-react";
 import { UserAccount } from "../types";
+import NanditaLogo from "./NanditaLogo";
 
 interface LoginViewProps {
   onLogin: (user: UserAccount) => void;
   userAccounts: UserAccount[];
+  logoUrl?: string;
 }
 
-export default function LoginView({ onLogin, userAccounts }: LoginViewProps) {
+export default function LoginView({ onLogin, userAccounts, logoUrl }: LoginViewProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -51,18 +53,8 @@ export default function LoginView({ onLogin, userAccounts }: LoginViewProps) {
       
       <div className="w-full max-w-md bg-white/5 backdrop-blur-md border border-white/10 p-8 rounded-3xl shadow-2xl flex flex-col items-center">
         
-        {/* Logo Icon */}
-        <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-amber-500 rounded-2xl flex items-center justify-center shadow-lg mb-4 border border-amber-300 relative">
-          <Anchor className="w-6 h-6 text-[#001124] absolute opacity-20" />
-          <Ship className="w-9 h-9 text-[#001124] relative z-10 animate-pulse" />
-        </div>
-
-        <h2 className="text-xl font-bold text-white text-center tracking-tight font-display">
-          LPK NANDITA FLOATING HOTEL
-        </h2>
-        <p className="text-xs text-amber-400 font-mono uppercase tracking-widest mt-1">
-          Sistem Informasi Terpadu Buku Induk
-        </p>
+        {/* Official Brand Logo */}
+        <NanditaLogo variant="vertical" height={100} lightText logoUrl={logoUrl} className="mb-6" />
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="w-full mt-8 space-y-4">
@@ -120,30 +112,7 @@ export default function LoginView({ onLogin, userAccounts }: LoginViewProps) {
           </button>
         </form>
 
-        {/* Preset accounts for testing convenience */}
-        <div className="w-full mt-8 border-t border-white/10 pt-6">
-          <p className="text-[10px] font-mono text-center text-slate-400 uppercase tracking-widest mb-3">
-            🔐 Akun Demo Cepat (Klik untuk Isi)
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            {userAccounts.map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                onClick={() => handleQuickLogin(u)}
-                className="bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl p-2.5 text-center transition flex flex-col items-center justify-center cursor-pointer"
-              >
-                <UserCheck className="w-3.5 h-3.5 text-amber-400 mb-1" />
-                <span className="text-[10px] font-bold text-white block capitalize">
-                  {u.username}
-                </span>
-                <span className="text-[8px] text-slate-400 block mt-0.5">
-                  ({u.role})
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
+
 
         {/* Footer credits */}
         <p className="text-[9px] text-slate-500 font-mono mt-8">

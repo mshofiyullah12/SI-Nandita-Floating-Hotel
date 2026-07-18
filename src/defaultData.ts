@@ -37,7 +37,8 @@ export const initialSchoolSettings: SchoolSettings = {
   direkturNama: "Nandita Wahyuni, M.Par.",
   direkturNip: "NIP. 19820512 201012 2 001",
   logoUrl: "", // We can render a fallback custom icon/logo in the UI
-  warnaUtama: "#001f3f" // Navy-900 (Bento Grid Theme)
+  warnaUtama: "#001f3f", // Navy-900 (Bento Grid Theme)
+  akreditasi: "Terakreditasi A (Sangat Baik) - LA-LPK"
 };
 
 export const initialSiswa: Siswa[] = [
@@ -216,7 +217,9 @@ export const initialAbsensi: Absensi[] = [
     nama: "Budi Santoso",
     kategori: "Instruktur",
     status: AbsensiStatus.Hadir,
-    keterangan: "Mengajar materi Food Service"
+    keterangan: "Mengajar materi Food Service",
+    jamMasuk: "08:00",
+    jamSelesai: "11:30"
   },
   {
     id: "ABS-006",
@@ -225,7 +228,9 @@ export const initialAbsensi: Absensi[] = [
     nama: "Agnes Monica Siahaan",
     kategori: "Instruktur",
     status: AbsensiStatus.Hadir,
-    keterangan: "Mengajar materi Housekeeping"
+    keterangan: "Mengajar materi Housekeeping",
+    jamMasuk: "09:00",
+    jamSelesai: "12:00"
   },
   {
     id: "ABS-007",
@@ -234,7 +239,9 @@ export const initialAbsensi: Absensi[] = [
     nama: "Irwan Hermawan",
     kategori: "Staf",
     status: AbsensiStatus.Hadir,
-    keterangan: "Dinas Kantor"
+    keterangan: "Dinas Kantor",
+    jamMasuk: "08:00",
+    jamSelesai: "16:00"
   },
   {
     id: "ABS-008",
@@ -243,7 +250,9 @@ export const initialAbsensi: Absensi[] = [
     nama: "Dewi Lestari",
     kategori: "Staf",
     status: AbsensiStatus.Hadir,
-    keterangan: "Melayani pembayaran siswa"
+    keterangan: "Melayani pembayaran siswa",
+    jamMasuk: "08:00",
+    jamSelesai: "16:00"
   }
 ];
 
@@ -522,6 +531,24 @@ export const initialUsers: UserAccount[] = [
     role: "Keuangan",
     status: "Aktif",
     password: "keuangan"
+  },
+  {
+    id: "USR-004",
+    username: "siswa",
+    nama: "Rian Hidayat",
+    role: "Siswa",
+    status: "Aktif",
+    password: "siswa",
+    siswaId: "SIS-001"
+  },
+  {
+    id: "USR-005",
+    username: "siti",
+    nama: "Siti Aminah",
+    role: "Siswa",
+    status: "Aktif",
+    password: "siti",
+    siswaId: "SIS-002"
   }
 ];
 

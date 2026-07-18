@@ -1,12 +1,13 @@
 import React, { useState } from "react";
-import { UserAccount } from "../types";
-import { Plus, Search, Edit2, Trash2, Key, Shield, UserX, UserCheck } from "lucide-react";
+import { UserAccount, Siswa } from "../types";
+import { Plus, Search, Edit2, Trash2, Key, Shield, UserX, UserCheck, Link } from "lucide-react";
 
 export const AVAILABLE_SHEETS = [
   "Dashboard & Ringkasan",
   "Siswa",
   "Staf & Instruktur",
-  "Absensi",
+  "Absensi Siswa",
+  "Absensi Instruktur",
   "Sertifikat",
   "Keuangan & Piutang",
   "Tagihan Siswa",
@@ -21,6 +22,7 @@ export const AVAILABLE_SHEETS = [
 
 interface UserAccountSheetProps {
   userAccounts: UserAccount[];
+  siswaList?: Siswa[];
   onAddUser: (user: UserAccount) => void;
   onUpdateUser: (user: UserAccount) => void;
   onDeleteUser: (id: string) => void;
@@ -28,6 +30,7 @@ interface UserAccountSheetProps {
 
 export default function UserAccountSheet({
   userAccounts,
+  siswaList = [],
   onAddUser,
   onUpdateUser,
   onDeleteUser,
@@ -39,10 +42,11 @@ export default function UserAccountSheet({
   // Form State
   const [username, setUsername] = useState("");
   const [nama, setNama] = useState("");
-  const [role, setRole] = useState<"Admin" | "Staf" | "Keuangan" | "Instruktur">("Staf");
+  const [role, setRole] = useState<"Admin" | "Staf" | "Keuangan" | "Instruktur" | "Siswa">("Staf");
   const [status, setStatus] = useState<"Aktif" | "Non-Aktif">("Aktif");
   const [password, setPassword] = useState("");
   const [allowedTabs, setAllowedTabs] = useState<string[]>([]);
+  const [selectedSiswaId, setSelectedSiswaId] = useState("");
 
   const filteredUsers = userAccounts.filter(
     (u) =>
@@ -51,16 +55,33 @@ export default function UserAccountSheet({
       u.role.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleRoleChange = (newRole: "Admin" | "Staf" | "Keuangan" | "Instruktur") => {
+  const handleRoleChange = (newRole: "Admin" | "Staf" | "Keuangan" | "Instruktur" | "Siswa") => {
     setRole(newRole);
     if (newRole === "Instruktur") {
-      setAllowedTabs(["Absensi"]);
+      setAllowedTabs(["Absensi Siswa", "Absensi Instruktur"]);
+    } else if (newRole === "Siswa") {
+      setAllowedTabs(["Tagihan Saya", "Riwayat Pembayaran"]);
+      if (siswaList && siswaList.length > 0) {
+        const firstSiswa = siswaList[0];
+        setSelectedSiswaId(firstSiswa.id);
+        setNama(firstSiswa.nama);
+        setUsername(firstSiswa.nama.toLowerCase().replace(/\s+/g, ""));
+      }
     } else if (newRole === "Admin") {
       setAllowedTabs([...AVAILABLE_SHEETS]);
     } else if (newRole === "Keuangan") {
       setAllowedTabs(AVAILABLE_SHEETS.filter(t => !["Data Pengguna", "Pengaturan"].includes(t)));
     } else if (newRole === "Staf") {
       setAllowedTabs(AVAILABLE_SHEETS.filter(t => !["Data Pengguna", "Pengaturan"].includes(t)));
+    }
+  };
+
+  const handleSiswaSelection = (siswaId: string) => {
+    setSelectedSiswaId(siswaId);
+    const selectedSiswa = siswaList.find((s) => s.id === siswaId);
+    if (selectedSiswa) {
+      setNama(selectedSiswa.nama);
+      setUsername(selectedSiswa.nama.toLowerCase().replace(/\s+/g, ""));
     }
   };
 
@@ -71,6 +92,7 @@ export default function UserAccountSheet({
     setStatus("Aktif");
     setPassword("12345");
     setAllowedTabs(AVAILABLE_SHEETS.filter(t => !["Data Pengguna", "Pengaturan"].includes(t)));
+    setSelectedSiswaId("");
     setEditingUser(null);
     setShowAddForm(true);
   };
@@ -82,13 +104,16 @@ export default function UserAccountSheet({
     setRole(user.role);
     setStatus(user.status);
     setPassword(user.password || "12345");
+    setSelectedSiswaId(user.siswaId || "");
     
     // Default allowed tabs based on role if undefined
     if (user.allowedTabs) {
       setAllowedTabs(user.allowedTabs);
     } else {
       if (user.role === "Instruktur") {
-        setAllowedTabs(["Absensi"]);
+        setAllowedTabs(["Absensi Siswa", "Absensi Instruktur"]);
+      } else if (user.role === "Siswa") {
+        setAllowedTabs(["Tagihan Saya", "Riwayat Pembayaran"]);
       } else if (user.role === "Admin") {
         setAllowedTabs([...AVAILABLE_SHEETS]);
       } else {
@@ -114,6 +139,7 @@ export default function UserAccountSheet({
         status,
         password: password.trim(),
         allowedTabs,
+        siswaId: role === "Siswa" ? selectedSiswaId : undefined,
       });
     } else {
       // Check duplicate username
@@ -129,6 +155,7 @@ export default function UserAccountSheet({
         status,
         password: password.trim() || "12345",
         allowedTabs,
+        siswaId: role === "Siswa" ? selectedSiswaId : undefined,
       });
     }
 
@@ -186,8 +213,8 @@ export default function UserAccountSheet({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Table View */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        {/* Table View - takes full width when add form is hidden */}
+        <div className={`${showAddForm ? "lg:col-span-2" : "lg:col-span-3"} bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden`}>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -215,10 +242,12 @@ export default function UserAccountSheet({
                             ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                             : user.role === "Instruktur"
                             ? "bg-purple-50 text-purple-700 border border-purple-200"
+                            : user.role === "Siswa"
+                            ? "bg-indigo-50 text-indigo-700 border border-indigo-200"
                             : "bg-blue-50 text-blue-700 border border-blue-200"
                         }`}
                       >
-                        {user.role}
+                        {user.role} {user.siswaId && `(${user.siswaId})`}
                       </span>
                     </td>
                     <td className="py-3.5 px-4">
@@ -342,6 +371,7 @@ export default function UserAccountSheet({
                     <option value="Staf">Staf</option>
                     <option value="Keuangan">Keuangan</option>
                     <option value="Instruktur">Instruktur</option>
+                    <option value="Siswa">Siswa</option>
                   </select>
                 </div>
 
@@ -360,6 +390,31 @@ export default function UserAccountSheet({
                   </select>
                 </div>
               </div>
+
+              {role === "Siswa" && (
+                <div className="space-y-1 bg-indigo-50/50 border border-indigo-100 rounded-xl p-3">
+                  <label className="text-[10px] font-mono text-indigo-700 uppercase tracking-wider block font-bold flex items-center">
+                    <Link className="w-3.5 h-3.5 mr-1.5 text-indigo-500" />
+                    Hubungkan ke Data Siswa <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    id="user-siswa-link"
+                    value={selectedSiswaId}
+                    onChange={(e) => handleSiswaSelection(e.target.value)}
+                    className="w-full border border-indigo-200 rounded-xl px-3 py-2 text-xs text-slate-700 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 font-sans font-medium"
+                  >
+                    <option value="">-- Pilih Siswa --</option>
+                    {siswaList.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.id} - {s.nama} ({s.programStudi})
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[9px] text-slate-400 mt-1 leading-normal font-sans">
+                    Nama & Username akan terisi otomatis berdasarkan profil siswa yang dipilih.
+                  </p>
+                </div>
+              )}
 
               {/* Granular Permission Checklist Grid */}
               <div className="space-y-1.5 pt-2">

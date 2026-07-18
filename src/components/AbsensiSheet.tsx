@@ -41,6 +41,8 @@ export default function AbsensiSheet({
   const [selectedTargetId, setSelectedTargetId] = useState("");
   const [status, setStatus] = useState<AbsensiStatus>(AbsensiStatus.Hadir);
   const [notes, setNotes] = useState("");
+  const [jamMasuk, setJamMasuk] = useState("08:00");
+  const [jamSelesai, setJamSelesai] = useState("12:00");
 
   // Filter attendance records by date, category, and search
   const filteredAbsensi = absensi.filter(a => {
@@ -112,13 +114,17 @@ export default function AbsensiSheet({
       nama: targetNama,
       kategori: targetKategori,
       status: status,
-      keterangan: notes
+      keterangan: notes,
+      jamMasuk: targetKategori !== "Siswa" ? jamMasuk : undefined,
+      jamSelesai: targetKategori !== "Siswa" ? jamSelesai : undefined
     };
 
     onAddAbsensi(newRecord);
     setIsFormOpen(false);
     setSelectedTargetId("");
     setNotes("");
+    setJamMasuk("08:00");
+    setJamSelesai("12:00");
   };
 
   return (
@@ -222,7 +228,7 @@ export default function AbsensiSheet({
 
       {/* Main Spreadsheet Table */}
       <div className="flex-grow overflow-auto">
-        <table className="w-full text-left border-collapse min-w-[900px]">
+        <table className={`w-full text-left border-collapse ${viewMode === "Instruktur" ? "min-w-[1100px]" : "min-w-[900px]"}`}>
           <thead>
             <tr className="bg-gray-100 border-b border-gray-300 text-xs font-mono text-gray-500">
               <th className="w-10 text-center border-r border-gray-300 select-none py-1">#</th>
@@ -232,7 +238,13 @@ export default function AbsensiSheet({
               <th className="px-3 py-1 border-r border-gray-300 w-24 text-center text-amber-600">Sakit (D)</th>
               <th className="px-3 py-1 border-r border-gray-300 w-24 text-center text-blue-600">Izin (E)</th>
               <th className="px-3 py-1 border-r border-gray-300 w-24 text-center text-red-600">Alpa (F)</th>
-              <th className="px-3 py-1 border-r border-gray-300">Keterangan / Alasan (G)</th>
+              {viewMode === "Instruktur" && (
+                <>
+                  <th className="px-3 py-1 border-r border-gray-300 w-32 text-center text-indigo-700">Jam Masuk (G)</th>
+                  <th className="px-3 py-1 border-r border-gray-300 w-32 text-center text-indigo-700">Jam Selesai (H)</th>
+                </>
+              )}
+              <th className="px-3 py-1 border-r border-gray-300">Keterangan / Alasan ({viewMode === "Instruktur" ? "I" : "G"})</th>
               <th className="px-3 py-1 text-center w-20">Tanggal</th>
             </tr>
           </thead>
@@ -331,6 +343,27 @@ export default function AbsensiSheet({
                     </button>
                   </td>
 
+                  {viewMode === "Instruktur" && (
+                    <>
+                      <td className="px-3 py-2 border-r border-gray-300 text-center">
+                        <input
+                          type="time"
+                          value={record.jamMasuk || ""}
+                          onChange={(e) => onUpdateAbsensi({ ...record, jamMasuk: e.target.value })}
+                          className="w-full bg-transparent border border-gray-200 rounded px-1.5 py-0.5 text-center focus:border-indigo-600 focus:outline-none focus:bg-white font-mono text-xs text-indigo-900 font-semibold"
+                        />
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-300 text-center">
+                        <input
+                          type="time"
+                          value={record.jamSelesai || ""}
+                          onChange={(e) => onUpdateAbsensi({ ...record, jamSelesai: e.target.value })}
+                          className="w-full bg-transparent border border-gray-200 rounded px-1.5 py-0.5 text-center focus:border-indigo-600 focus:outline-none focus:bg-white font-mono text-xs text-indigo-900 font-semibold"
+                        />
+                      </td>
+                    </>
+                  )}
+
                   {/* Keterangan */}
                   <td className="px-3 py-2 border-r border-gray-300 text-gray-500 font-sans">
                     <input
@@ -351,7 +384,7 @@ export default function AbsensiSheet({
             })}
             {filteredAbsensi.length === 0 && (
               <tr>
-                <td colSpan={9} className="text-center py-10 text-gray-400 bg-gray-50">
+                <td colSpan={viewMode === "Instruktur" ? 11 : 9} className="text-center py-10 text-gray-400 bg-gray-50">
                   Belum ada rekaman absensi untuk tanggal <strong>{selectedDate}</strong>.
                   <div className="mt-3 space-x-2">
                     {viewMode === "Siswa" ? (
@@ -466,6 +499,29 @@ export default function AbsensiSheet({
                   </select>
                 </div>
               </div>
+
+              {formType !== "Siswa" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Jam Masuk Mengajar</label>
+                    <input
+                      type="time"
+                      value={jamMasuk}
+                      onChange={(e) => setJamMasuk(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-600 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Jam Selesai Mengajar</label>
+                    <input
+                      type="time"
+                      value={jamSelesai}
+                      onChange={(e) => setJamSelesai(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-indigo-600 font-mono"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Keterangan / Catatan</label>

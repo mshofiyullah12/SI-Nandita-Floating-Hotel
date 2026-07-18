@@ -5,8 +5,9 @@
 
 import React, { useState } from "react";
 import { Siswa, ProgramStudi, Gender, SiswaStatus } from "../types";
-import { Search, Plus, Trash2, Edit2, FileDown, FileUp, Filter, BookOpen, Printer, FileText, User, Heart, Briefcase, MapPin, Eye } from "lucide-react";
+import { Search, Plus, Trash2, Edit2, FileDown, FileUp, Filter, BookOpen, Printer, FileText, User, Heart, Briefcase, MapPin, Eye, FileSpreadsheet } from "lucide-react";
 import { exportToCSV, parseCSV } from "../utils";
+import * as XLSX from "xlsx";
 
 interface SiswaSheetProps {
   siswa: Siswa[];
@@ -186,6 +187,42 @@ export default function SiswaSheet({
     exportToCSV(siswa, "buku_induk_siswa", headersMap);
   };
 
+  const handleExportExcel = () => {
+    const formatted = filteredSiswa.map((s, idx) => ({
+      "No": idx + 1,
+      "ID Siswa": s.id,
+      "Nama Lengkap": s.nama,
+      "NIS (Nomor Induk)": s.nis,
+      "NIK": s.nik || "-",
+      "Jenis Kelamin": s.gender,
+      "Tempat Lahir": s.tempatLahir,
+      "Tanggal Lahir": s.tanggalLahir,
+      "No. Handphone": s.noHp,
+      "Alamat Rumah": s.alamat,
+      "Program Studi": s.programStudi,
+      "Angkatan": s.angkatan,
+      "Tanggal Daftar": s.tanggalDaftar,
+      "Status": s.status,
+      "Agama": s.agama || "-",
+      "Pendidikan Terakhir": s.pendidikanTerakhir || "-",
+      "Nama Ayah": s.namaAyah || "-",
+      "Pekerjaan Ayah": s.pekerjaanAyah || "-",
+      "Nama Ibu": s.namaIbu || "-",
+      "Pekerjaan Ibu": s.pekerjaanIbu || "-",
+      "No. HP Orang Tua": s.noHpOrangTua || "-",
+      "Tinggi Badan (cm)": s.tinggiBadan || "-",
+      "Berat Badan (kg)": s.beratBadan || "-",
+      "Catatan Kesehatan": s.catatanKesehatan || "Sehat Walafiat"
+    }));
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(formatted);
+    XLSX.utils.book_append_sheet(wb, ws, "Buku Induk Siswa");
+    
+    const filterDesc = filterProgram !== "All" || filterStatus !== "All" ? "_Filtered" : "";
+    XLSX.writeFile(wb, `Buku_Induk_Siswa_Nandita${filterDesc}_${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
+
   const handleImportCSV = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -320,10 +357,19 @@ export default function SiswaSheet({
 
           {/* Import/Export */}
           <button
+            id="btn-export-siswa-xlsx"
+            onClick={handleExportExcel}
+            title="Ekspor langsung ke Excel (.xlsx)"
+            className="flex items-center justify-center p-1.5 border border-emerald-300 rounded hover:bg-emerald-50 text-emerald-700 bg-white cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4" />
+          </button>
+
+          <button
             id="btn-export-siswa-csv"
             onClick={handleExportCSV}
             title="Ekspor ke Excel (CSV)"
-            className="flex items-center justify-center p-1.5 border border-gray-300 rounded hover:bg-gray-100 text-gray-600 bg-white"
+            className="flex items-center justify-center p-1.5 border border-gray-300 rounded hover:bg-gray-100 text-gray-600 bg-white cursor-pointer"
           >
             <FileDown className="w-4 h-4" />
           </button>

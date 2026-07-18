@@ -11,11 +11,17 @@ import {
   KeuanganSiswa, 
   JobRegister, 
   JobLocationType, 
-  JobStatus 
+  JobStatus,
+  PembayaranLog,
+  PendapatanLain,
+  PengeluaranKas,
+  Payroll,
+  UtangPegawai
 } from "../types";
 import { formatRupiah } from "../utils";
 import { 
   TrendingUp, 
+  TrendingDown,
   Users, 
   Briefcase, 
   DollarSign, 
@@ -23,7 +29,13 @@ import {
   CheckCircle2, 
   Building2, 
   Ship, 
-  BarChart3 
+  BarChart3,
+  FileSpreadsheet,
+  Download,
+  Wallet,
+  ArrowUpRight,
+  ArrowDownRight,
+  Calculator
 } from "lucide-react";
 import { motion } from "motion/react";
 
@@ -33,7 +45,13 @@ interface ExcelDashboardProps {
   absensi: Absensi[];
   keuangan: KeuanganSiswa[];
   jobs: JobRegister[];
+  pembayaranLog?: PembayaranLog[];
+  pendapatanLain?: PendapatanLain[];
+  pengeluaranKas?: PengeluaranKas[];
+  payroll?: Payroll[];
+  utangPegawai?: UtangPegawai[];
   onSwitchSheet: (sheetName: string) => void;
+  onExportExcel?: () => void;
 }
 
 export default function ExcelDashboard({
@@ -42,7 +60,13 @@ export default function ExcelDashboard({
   absensi,
   keuangan,
   jobs,
-  onSwitchSheet
+  pembayaranLog = [],
+  pendapatanLain = [],
+  pengeluaranKas = [],
+  payroll = [],
+  utangPegawai = [],
+  onSwitchSheet,
+  onExportExcel
 }: ExcelDashboardProps) {
   // 1. Calculations for Siswa
   const totalSiswa = siswa.length;
@@ -68,6 +92,24 @@ export default function ExcelDashboard({
   const ratePelunasan = totalBiayaSemua > 0 
     ? Math.round((totalBayarSemua / totalBiayaSemua) * 100) 
     : 0;
+
+  // 4b. Cash Book Summary (Saldo Kas Akhir, Total Pemasukan, Total Pengeluaran, Saldo/Defisit)
+  const inflowSpp = pembayaranLog.reduce((acc, p) => acc + p.jumlahBayar, 0);
+  const inflowLain = pendapatanLain.reduce((acc, p) => acc + p.jumlah, 0);
+  const inflowUtang = utangPegawai.reduce((acc, u) => {
+    const cicilan = (u.riwayatCicilan || []).reduce((sum, c) => sum + c.jumlah, 0);
+    return acc + cicilan;
+  }, 0);
+  const totalPemasukan = inflowSpp + inflowLain + inflowUtang;
+
+  const outflowOperasional = pengeluaranKas.reduce((acc, e) => acc + e.jumlah, 0);
+  const outflowGaji = payroll
+    .filter((p) => p.statusGaji === "Dibayar")
+    .reduce((acc, p) => acc + p.totalGaji, 0);
+  const outflowKasbon = utangPegawai.reduce((acc, u) => acc + u.jumlahPinjam, 0);
+  const totalPengeluaran = outflowOperasional + outflowGaji + outflowKasbon;
+
+  const saldoKasAkhir = totalPemasukan - totalPengeluaran;
 
   // 5. Job Recruitment Stats
   const totalJobRegister = jobs.length;
@@ -149,6 +191,14 @@ export default function ExcelDashboard({
               </div>
               <div className="flex items-center space-x-3">
                 <button 
+                  id="btn-export-excel"
+                  onClick={onExportExcel}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-1.5 rounded-lg font-bold border border-emerald-500/30 transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>Unduh Master Excel (.xlsx)</span>
+                </button>
+                <button 
                   id="btn-goto-siswa"
                   onClick={() => onSwitchSheet("Siswa")} 
                   className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg font-medium border border-white/20 transition-all duration-300 shadow-sm"
@@ -166,10 +216,160 @@ export default function ExcelDashboard({
             </div>
           </div>
 
-          {/* Row 4-10: Main Excel-style Card Indicators */}
+          {/* Row 4-8: Executive Financial Dashboard (Saldo Kas Akhir, Pemasukan, Pengeluaran, Saldo/Defisit) */}
+          <div className="flex mb-6">
+            <div className="w-10 flex-shrink-0 bg-amber-50/80 border border-amber-200 rounded-l-2xl flex items-center justify-center text-[10px] font-mono text-amber-700 font-black h-44 select-none shadow-xs">
+              4-8
+            </div>
+            
+            <div className="flex-1 p-5 bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-r-2xl border-y border-r border-slate-200/80 shadow-xs flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-3 border-b border-slate-200/60 pb-2">
+                <div className="flex items-center space-x-2">
+                  <Calculator className="w-4 h-4 text-[#001f3f]" />
+                  <h2 className="text-xs font-bold font-mono uppercase text-[#001f3f] tracking-wider">
+                    Ringkasan Eksekutif & Arus Kas Utama LPK Nandita
+                  </h2>
+                </div>
+                <span className="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  SHEET: KAS_UTAMA!A4:D8
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {/* 1. Saldo Kas Akhir */}
+                <div className={`p-4 rounded-xl border transition-all duration-300 ${
+                  saldoKasAkhir >= 0 
+                    ? "bg-emerald-50/70 border-emerald-200/80 hover:bg-emerald-50" 
+                    : "bg-rose-50/70 border-rose-200/80 hover:bg-rose-50"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-semibold">
+                      Saldo Kas Akhir
+                    </span>
+                    <Wallet className={`w-4 h-4 ${saldoKasAkhir >= 0 ? "text-emerald-600" : "text-rose-600"}`} />
+                  </div>
+                  <h3 className={`text-xl font-black font-mono mt-2 tracking-tight ${
+                    saldoKasAkhir >= 0 ? "text-emerald-800" : "text-rose-800"
+                  }`}>
+                    {formatRupiah(saldoKasAkhir)}
+                  </h3>
+                  <p className="text-[9px] text-slate-500 mt-1.5 font-sans leading-relaxed">
+                    Total likuiditas kas aktif yang tersedia di rekening operasional lembaga saat ini.
+                  </p>
+                </div>
+
+                {/* 2. Total Pemasukan */}
+                <div className="p-4 bg-white rounded-xl border border-slate-200 hover:border-[#001f3f]/30 transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-semibold">
+                      Total Pemasukan
+                    </span>
+                    <div className="flex items-center text-emerald-600 space-x-0.5">
+                      <ArrowUpRight className="w-4 h-4" />
+                      <span className="text-[9px] font-mono font-bold">IN</span>
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold font-mono text-slate-900 mt-2 tracking-tight">
+                    {formatRupiah(totalPemasukan)}
+                  </h3>
+                  <div className="text-[9px] text-slate-500 mt-1.5 space-y-0.5 border-t border-slate-100 pt-1.5 font-mono">
+                    <div className="flex justify-between">
+                      <span>• SPP Siswa:</span>
+                      <span className="font-semibold text-slate-700">{formatRupiah(inflowSpp)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>• Pend. Lain:</span>
+                      <span className="font-semibold text-slate-700">{formatRupiah(inflowLain)}</span>
+                    </div>
+                    {inflowUtang > 0 && (
+                      <div className="flex justify-between">
+                        <span>• Cicilan Staf:</span>
+                        <span className="font-semibold text-slate-700">{formatRupiah(inflowUtang)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. Total Pengeluaran */}
+                <div className="p-4 bg-white rounded-xl border border-slate-200 hover:border-[#001f3f]/30 transition-all duration-300">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-semibold">
+                      Total Pengeluaran
+                    </span>
+                    <div className="flex items-center text-rose-600 space-x-0.5">
+                      <ArrowDownRight className="w-4 h-4" />
+                      <span className="text-[9px] font-mono font-bold">OUT</span>
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold font-mono text-slate-900 mt-2 tracking-tight">
+                    {formatRupiah(totalPengeluaran)}
+                  </h3>
+                  <div className="text-[9px] text-slate-500 mt-1.5 space-y-0.5 border-t border-slate-100 pt-1.5 font-mono">
+                    <div className="flex justify-between">
+                      <span>• Gaji Pegawai:</span>
+                      <span className="font-semibold text-slate-700">{formatRupiah(outflowGaji)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>• Operasional:</span>
+                      <span className="font-semibold text-slate-700">{formatRupiah(outflowOperasional)}</span>
+                    </div>
+                    {outflowKasbon > 0 && (
+                      <div className="flex justify-between">
+                        <span>• Kas Bon:</span>
+                        <span className="font-semibold text-slate-700">{formatRupiah(outflowKasbon)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Saldo/Defisit Status */}
+                <div className={`p-4 rounded-xl border transition-all duration-300 flex flex-col justify-between ${
+                  saldoKasAkhir >= 0 
+                    ? "bg-[#001f3f]/5 border-[#001f3f]/20 hover:bg-[#001f3f]/10" 
+                    : "bg-rose-50 border-rose-200 hover:bg-rose-100"
+                }`}>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-mono text-slate-500 uppercase tracking-wider font-semibold">
+                        Status Saldo / Defisit
+                      </span>
+                      {saldoKasAkhir >= 0 ? (
+                        <TrendingUp className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <TrendingDown className="w-4 h-4 text-rose-600" />
+                      )}
+                    </div>
+                    
+                    <div className="mt-2.5">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-mono font-black uppercase shadow-xs ${
+                        saldoKasAkhir >= 0 
+                          ? "bg-emerald-600 text-white" 
+                          : "bg-rose-600 text-white"
+                      }`}>
+                        {saldoKasAkhir >= 0 ? "SURPLUS KAS" : "DEFISIT KAS"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 border-t border-slate-200/60 pt-2 text-[10px] text-slate-600">
+                    <div className="flex justify-between">
+                      <span>Rasio Retensi Kas:</span>
+                      <span className="font-mono font-bold text-[#001f3f]">
+                        {totalPemasukan > 0 
+                          ? Math.round((saldoKasAkhir / totalPemasukan) * 100) 
+                          : 0}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 9-14: Main Excel-style Card Indicators */}
           <div className="flex mb-4">
             <div className="w-10 flex-shrink-0 bg-slate-50 border border-slate-200/80 rounded-l-2xl flex items-center justify-center text-[10px] font-mono text-slate-400 h-40 select-none shadow-sm">
-              4-10
+              9-14
             </div>
             
             {/* KPI Cards in a grid */}
@@ -254,10 +454,10 @@ export default function ExcelDashboard({
             </div>
           </div>
 
-          {/* Row 11-30: Dual Chart Sheets Embedded */}
+          {/* Row 15-30: Dual Chart Sheets Embedded */}
           <div className="flex mb-4">
             <div className="w-10 flex-shrink-0 bg-slate-50 border border-slate-200/80 rounded-l-2xl flex items-center justify-center text-[10px] font-mono text-slate-400 h-[400px] select-none shadow-sm">
-              11-30
+              15-30
             </div>
 
             <div className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 bg-slate-100/30 rounded-r-2xl border-y border-r border-slate-200/80">
@@ -419,10 +619,10 @@ export default function ExcelDashboard({
             </div>
           </div>
 
-          {/* Row 31-40: Quick Links and Operations Section */}
+          {/* Row 31-45: Quick Links and Operations Section */}
           <div className="flex">
             <div className="w-10 flex-shrink-0 bg-slate-50 border border-slate-200/80 rounded-l-2xl flex items-center justify-center text-[10px] font-mono text-slate-400 h-36 select-none shadow-sm">
-              31-40
+              31-45
             </div>
 
             {/* Quick sheets index and instructional notes */}
@@ -442,6 +642,7 @@ export default function ExcelDashboard({
                   { name: "Keuangan & Piutang", desc: "Akun Biaya & Kas Siswa", color: "hover:border-amber-400 hover:bg-white/10" },
                   { name: "Payroll Gaji", desc: "Penghitungan Gaji & Slip", color: "hover:border-amber-400 hover:bg-white/10" },
                   { name: "Lowongan / Job", desc: "Daftar Kerja DN & LN", color: "hover:border-amber-400 hover:bg-white/10" },
+                  { name: "Integrasi Google Sheets", desc: "Sinkronisasi Cloud Drive", color: "hover:border-amber-400 hover:bg-white/10" },
                   { name: "Pengaturan", desc: "Logo, Nama, Direktur & Cetak", color: "hover:border-amber-400 hover:bg-white/10" }
                 ].map((sheet) => (
                   <button

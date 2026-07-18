@@ -95,6 +95,8 @@ export interface Absensi {
   kategori: "Siswa" | "Staf" | "Instruktur";
   status: AbsensiStatus;
   keterangan: string;
+  jamMasuk?: string; // Jam masuk mengajar (Guru/Staf)
+  jamSelesai?: string; // Jam selesai mengajar (Guru/Staf)
 }
 
 export interface Sertifikat {
@@ -170,16 +172,18 @@ export interface SchoolSettings {
   direkturNip: string;
   logoUrl: string; // SVG data or image URL
   warnaUtama: string; // Primary hex color code
+  akreditasi?: string; // LPK Accreditation info
 }
 
 export interface UserAccount {
   id: string;
   username: string;
   nama: string;
-  role: "Admin" | "Staf" | "Keuangan" | "Instruktur";
+  role: "Admin" | "Staf" | "Keuangan" | "Instruktur" | "Siswa";
   status: "Aktif" | "Non-Aktif";
   password?: string;
   allowedTabs?: string[];
+  siswaId?: string; // Menghubungkan akun ke ID Siswa jika rolenya Siswa
 }
 
 export interface TagihanSiswa {

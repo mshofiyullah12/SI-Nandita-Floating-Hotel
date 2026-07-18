@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { SchoolSettings } from "../types";
-import { Save, RefreshCw, HelpCircle, Check, Palette } from "lucide-react";
+import { Save, RefreshCw, HelpCircle, Check, Palette, Upload, Trash2, Image } from "lucide-react";
+import NanditaLogo from "./NanditaLogo";
 
 interface SettingsSheetProps {
   settings: SchoolSettings;
@@ -20,6 +21,57 @@ export default function SettingsSheet({
 }: SettingsSheetProps) {
   const [formData, setFormData] = useState<SchoolSettings>(settings);
   const [isSaved, setIsSaved] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processLogoFile(file);
+    }
+  };
+
+  const processLogoFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      alert("Hanya file gambar (PNG, JPG, SVG, dll) yang diperbolehkan!");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setFormData((prev) => ({
+          ...prev,
+          logoUrl: event.target!.result as string
+        }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processLogoFile(file);
+    }
+  };
+
+  const handleClearLogo = () => {
+    setFormData((prev) => ({
+      ...prev,
+      logoUrl: ""
+    }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,13 +181,124 @@ export default function SettingsSheet({
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Website Resmi LPK</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.website || ""}
+                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                    placeholder="www.nanditafloatinghotel.com"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Status Akreditasi LPK</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.akreditasi || ""}
+                    onChange={(e) => setFormData({ ...formData, akreditasi: e.target.value })}
+                    placeholder="Terakreditasi A (Sangat Baik) - LA-LPK"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-xs font-semibold text-teal-800 bg-teal-50/20"
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Section 2: Director Signee details */}
+          {/* Section 2: Logo & Identitas Visual LPK */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+            <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center justify-between">
+              <span className="flex items-center">
+                <Image className="w-4 h-4 mr-1.5 text-teal-700" />
+                2. Logo & Identitas Visual Resmi LPK
+              </span>
+              {formData.logoUrl && (
+                <button
+                  type="button"
+                  onClick={handleClearLogo}
+                  className="text-[10px] text-red-600 hover:text-red-800 font-bold flex items-center space-x-0.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3 h-3 mr-0.5" />
+                  Gunakan Logo Default
+                </button>
+              )}
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Drag and Drop Zone */}
+              <div className="flex flex-col justify-between space-y-3">
+                <label className="block text-xs font-bold text-gray-700">Unggah File Logo Baru</label>
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center min-h-[140px] ${
+                    isDragging
+                      ? "border-teal-600 bg-teal-50/50 scale-[1.02]"
+                      : "border-gray-300 hover:border-teal-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <Upload className={`w-8 h-8 mb-2 ${isDragging ? "text-teal-700" : "text-gray-400"}`} />
+                  <span className="text-xs font-bold text-gray-700 block">
+                    {isDragging ? "Lepaskan Logo Di Sini" : "Seret & Lepas Gambar Logo"}
+                  </span>
+                  <span className="text-[10px] text-gray-500 mt-1 block">
+                    atau klik untuk memilih file dari komputer
+                  </span>
+                  <span className="text-[9px] text-gray-400 mt-0.5 block italic">
+                    Format: PNG, JPG, JPEG, SVG, GIF (Rekomendasi rasio 1:1)
+                  </span>
+                </div>
+              </div>
+
+              {/* Live Preview Display */}
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 flex flex-col justify-between">
+                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-2">Pratinjau Logo Aktif</span>
+                
+                <div className="space-y-4 flex flex-col justify-center items-center py-2">
+                  <div className="flex items-center space-x-6">
+                    <div className="text-center">
+                      <span className="text-[9px] text-gray-400 block mb-1">Variant: Icon</span>
+                      <div className="p-2 bg-white rounded-lg border border-gray-200 inline-block shadow-sm">
+                        <NanditaLogo logoUrl={formData.logoUrl} variant="icon" height={50} />
+                      </div>
+                    </div>
+                    
+                    <div className="text-center">
+                      <span className="text-[9px] text-gray-400 block mb-1">Variant: Certificate</span>
+                      <div className="p-2 bg-white rounded-lg border border-gray-200 inline-block shadow-sm">
+                        <NanditaLogo logoUrl={formData.logoUrl} variant="icon" height={64} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="w-full text-center">
+                    <span className="text-[9px] text-gray-400 block mb-1">Variant: Horizontal (Header / Logo Utama)</span>
+                    <div className="p-3 bg-white rounded-lg border border-gray-200 shadow-sm inline-block max-w-full overflow-hidden">
+                      <NanditaLogo logoUrl={formData.logoUrl} variant="horizontal" height={50} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Director Signee details */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider border-b border-gray-100 pb-2">
-              2. Detail Direktur & Legalitas Sertifikat
+              3. Detail Direktur & Legalitas Sertifikat
             </h3>
 
             <div className="grid grid-cols-2 gap-4">
@@ -168,11 +331,11 @@ export default function SettingsSheet({
             </p>
           </div>
 
-          {/* Section 3: Visual App Style Customizer */}
+          {/* Section 4: Visual App Style Customizer */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center">
               <Palette className="w-4 h-4 mr-1 text-teal-700" />
-              3. Visual & Tema Aplikasi
+              4. Visual & Tema Aplikasi
             </h3>
 
             <div>
