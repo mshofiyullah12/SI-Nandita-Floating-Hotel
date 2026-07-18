@@ -196,14 +196,6 @@ export default function ExcelDashboard({
               </div>
               <div className="flex items-center space-x-3">
                 <button 
-                  id="btn-export-excel"
-                  onClick={onExportExcel}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3.5 py-1.5 rounded-lg font-bold border border-emerald-500/30 transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
-                >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  <span>Unduh Master Excel (.xlsx)</span>
-                </button>
-                <button 
                   id="btn-goto-siswa"
                   onClick={() => onSwitchSheet("Siswa")} 
                   className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg font-medium border border-white/20 transition-all duration-300 shadow-sm"
@@ -217,6 +209,14 @@ export default function ExcelDashboard({
                 >
                   <BarChart3 className="w-4 h-4 text-teal-200" />
                   <span>Laporan Keuangan →</span>
+                </button>
+                <button 
+                  id="btn-goto-kas"
+                  onClick={() => onSwitchSheet("Kas Operasional")} 
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
+                >
+                  <TrendingUp className="w-4 h-4 text-rose-200" />
+                  <span>Pendapatan & Pengeluaran →</span>
                 </button>
                 <button 
                   id="btn-goto-finance"
