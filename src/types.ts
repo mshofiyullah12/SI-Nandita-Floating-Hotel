@@ -180,6 +180,8 @@ export interface SchoolSettings {
   logoUrl: string; // SVG data or image URL
   warnaUtama: string; // Primary hex color code
   akreditasi?: string; // LPK Accreditation info
+  nomorIzin?: string; // LPK School License number
+  kopSuratPosisi?: "Kiri" | "Tengah" | "Kanan"; // Alignment of the letterhead (Kiri = left, Tengah = center, Kanan = right)
   // Bank transfer details
   bankNama?: string;
   bankRekening?: string;

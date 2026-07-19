@@ -224,16 +224,81 @@ export default function LaporanKeuanganSheet({
       `;
     }
 
+    const primaryColor = schoolSettings.warnaUtama || "#001f3f";
+    const alignment = schoolSettings.kopSuratPosisi || "Kiri";
+
+    const logoHtml = schoolSettings.logoUrl && schoolSettings.logoUrl.trim() !== "" 
+      ? `<img src="${schoolSettings.logoUrl}" style="max-height: 80px; max-width: 80px; object-fit: contain;" />`
+      : `<svg viewBox="0 0 100 100" width="80" height="80" style="display: inline-block;">
+          <path d="M 50,5 Q 77,16 87,27 Q 89,60 50,95 Q 11,60 13,27 Q 23,16 50,5 Z" fill="${primaryColor}" stroke="#b89047" stroke-width="2"/>
+          <circle cx="50" cy="45" r="18" fill="none" stroke="#b89047" stroke-width="1.5"/>
+          <text x="50" y="50" font-family="Georgia, serif" font-weight="bold" font-size="10" fill="#ffffff" text-anchor="middle">NFH</text>
+          <path d="M 30,55 Q 50,65 70,55" fill="none" stroke="#b89047" stroke-width="1.5"/>
+        </svg>`;
+
+    const textHtml = `
+      <div class="header-align-${alignment}">
+        <div class="school-name" style="color: ${primaryColor};">${schoolSettings.namaLembaga}</div>
+        <div class="school-tagline">${schoolSettings.tagline}</div>
+        <div class="school-address">${schoolSettings.alamat}</div>
+        <div class="school-contact">
+          Telp: ${schoolSettings.noTelepon} | Email: ${schoolSettings.email} | Website: ${schoolSettings.website || "-"}
+        </div>
+        <div class="school-legal">
+          No. Izin LPK: ${schoolSettings.nomorIzin || "KEP. 421.9/3024/436.7.15/2026"} &nbsp;|&nbsp; Akreditasi: ${schoolSettings.akreditasi || "-"}
+        </div>
+      </div>
+    `;
+
+    let headerContentHtml = "";
+    if (alignment === "Tengah") {
+      headerContentHtml = `
+        <tr>
+          <td style="text-align: center; vertical-align: middle; padding-bottom: 10px;">
+            <div style="margin-bottom: 12px; display: inline-block;">${logoHtml}</div>
+            ${textHtml}
+          </td>
+        </tr>
+      `;
+    } else if (alignment === "Kanan") {
+      headerContentHtml = `
+        <tr>
+          <td style="vertical-align: middle; padding-right: 15px;">
+            ${textHtml}
+          </td>
+          <td style="width: 90px; vertical-align: middle; padding-left: 15px; text-align: right;">
+            ${logoHtml}
+          </td>
+        </tr>
+      `;
+    } else { // Default Kiri
+      headerContentHtml = `
+        <tr>
+          <td style="width: 90px; vertical-align: middle; padding-right: 15px;">
+            ${logoHtml}
+          </td>
+          <td style="vertical-align: middle;">
+            ${textHtml}
+          </td>
+        </tr>
+      `;
+    }
+
     printWindow.document.write(`
       <html>
         <head>
           <title>${reportType === "arus_kas" ? "Laporan Arus Kas" : "Laporan Laba Rugi"}</title>
           <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #222; margin: 50px; }
-            .header-table { width: 100%; border-bottom: 3px solid #001f3f; padding-bottom: 20px; margin-bottom: 30px; }
-            .school-name { font-size: 22px; font-weight: bold; color: #001f3f; text-transform: uppercase; }
-            .school-tagline { font-size: 12px; color: #555; font-style: italic; margin-top: 4px; }
-            .school-address { font-size: 11px; color: #777; margin-top: 2px; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #222; margin: 40px; }
+            .header-table { width: 100%; border-bottom: 4px double ${primaryColor}; padding-bottom: 12px; margin-bottom: 25px; border-collapse: collapse; }
+            .school-name { font-size: 20px; font-weight: bold; text-transform: uppercase; line-height: 1.2; font-family: 'Georgia', serif; }
+            .school-tagline { font-size: 11px; color: #b45309; font-weight: bold; text-transform: uppercase; margin-top: 3px; font-style: italic; }
+            .school-address { font-size: 10px; color: #4b5563; margin-top: 4px; line-height: 1.4; }
+            .school-contact { font-size: 9px; color: #6b7280; margin-top: 1px; }
+            .school-legal { font-size: 9px; color: ${primaryColor}; margin-top: 3px; font-family: monospace; font-weight: bold; }
+            .header-align-Tengah { text-align: center; }
+            .header-align-Kanan { text-align: right; }
+            .header-align-Kiri { text-align: left; }
             .signature-section { margin-top: 60px; float: right; width: 250px; text-align: center; font-size: 13px; }
             @media print {
               button { display: none; }
@@ -242,13 +307,7 @@ export default function LaporanKeuanganSheet({
         </head>
         <body>
           <table class="header-table">
-            <tr>
-              <td>
-                <div class="school-name">${schoolSettings.namaLembaga}</div>
-                <div class="school-tagline">${schoolSettings.tagline}</div>
-                <div class="school-address">${schoolSettings.alamat} | Telp: ${schoolSettings.noTelepon}</div>
-              </td>
-            </tr>
+            ${headerContentHtml}
           </table>
 
           ${reportBodyHtml}

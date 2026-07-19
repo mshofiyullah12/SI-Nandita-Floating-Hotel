@@ -267,6 +267,32 @@ export default function SettingsSheet({
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Nomor Izin Operasional Sekolah / LPK</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.nomorIzin || ""}
+                    onChange={(e) => setFormData({ ...formData, nomorIzin: e.target.value })}
+                    placeholder="e.g. KEP. 421.9/3024/436.7.15/2026"
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-xs font-semibold text-rose-800 bg-rose-50/10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Posisi Kop Surat (Laporan Cetak & Excel)</label>
+                  <select
+                    value={formData.kopSuratPosisi || "Kiri"}
+                    onChange={(e) => setFormData({ ...formData, kopSuratPosisi: e.target.value as "Kiri" | "Tengah" | "Kanan" })}
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-xs font-semibold text-teal-800 bg-teal-50/10 focus:outline-none focus:ring-1 focus:ring-teal-500"
+                  >
+                    <option value="Kiri">Kiri (Logo Kiri, Teks Merapat Kiri)</option>
+                    <option value="Tengah">Tengah (Logo Tengah, Teks Rata Tengah)</option>
+                    <option value="Kanan">Kanan (Logo Kanan, Teks Merapat Kanan)</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
 

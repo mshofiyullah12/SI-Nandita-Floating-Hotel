@@ -39,6 +39,8 @@ export const initialSchoolSettings: SchoolSettings = {
   logoUrl: "", // We can render a fallback custom icon/logo in the UI
   warnaUtama: "#001f3f", // Navy-900 (Bento Grid Theme)
   akreditasi: "Terakreditasi A (Sangat Baik) - LA-LPK",
+  nomorIzin: "KEP. 421.9/3024/436.7.15/2026",
+  kopSuratPosisi: "Kiri",
   bankNama: "Bank Mandiri",
   bankRekening: "142-00-1234567-8",
   bankAtasNama: "LPK NANDITA FLOATING HOTEL",

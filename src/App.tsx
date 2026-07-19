@@ -982,6 +982,7 @@ export default function App() {
             onDeleteAbsensi={handleDeleteAbsensi}
             onBulkGenerateAbsensi={handleBulkGenerateAbsensi}
             viewMode="Siswa"
+            schoolSettings={schoolSettings}
           />
         );
       case "Absensi Instruktur":
@@ -995,6 +996,7 @@ export default function App() {
             onDeleteAbsensi={handleDeleteAbsensi}
             onBulkGenerateAbsensi={handleBulkGenerateAbsensi}
             viewMode="Instruktur"
+            schoolSettings={schoolSettings}
           />
         );
       case "Sertifikat":
