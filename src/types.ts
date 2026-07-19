@@ -184,6 +184,12 @@ export interface SchoolSettings {
   bankNama?: string;
   bankRekening?: string;
   bankAtasNama?: string;
+  googleSpreadsheetId?: string;
+  autoSyncEnabled?: boolean;
+  waTemplatePembayaran?: string;
+  waTemplateTagihanSiswa?: string;
+  waTemplateGaji?: string;
+  waTemplateDanaMasuk?: string;
 }
 
 export interface UserAccount {

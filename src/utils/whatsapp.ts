@@ -25,8 +25,18 @@ export function getWhatsAppUrl(phone: string, text: string): string {
 export interface WhatsAppNotification {
   recipientName: string;
   phone: string;
-  category: "Pembayaran Siswa" | "Piutang Siswa" | "Dana Masuk Transfer" | "Gaji & Payroll";
+  category: "Pembayaran Siswa" | "Tunggakan Siswa" | "Dana Masuk Transfer" | "Gaji & Payroll";
   message: string;
+}
+
+export function replacePlaceholders(template: string, replacements: Record<string, string>): string {
+  let result = template;
+  for (const [key, value] of Object.entries(replacements)) {
+    // Escape regex characters just in case, though these keys are alphanumeric
+    const regex = new RegExp(`{${key}}`, "g");
+    result = result.replace(regex, value);
+  }
+  return result;
 }
 
 // 1. WhatsApp Student Payment Receipt
@@ -36,10 +46,22 @@ export function formatPaymentNotification(
   description: string,
   date: string,
   remainingDebt: number,
-  lembaga: string = "LPK Nandita Floating Hotel"
+  lembaga: string = "LPK Nandita Floating Hotel",
+  customTemplate?: string
 ): string {
+  if (customTemplate) {
+    return replacePlaceholders(customTemplate, {
+      "lembaga": lembaga,
+      "nama_siswa": studentName,
+      "tanggal": date,
+      "nominal": formatRupiah(amount),
+      "keterangan": description,
+      "sisa_piutang": formatRupiah(remainingDebt)
+    });
+  }
+
   return `*BUKTI PEMBAYARAN RESMI* ✅
-LPK NANDITA FLOATING HOTEL & KAPAL PESIAR
+${lembaga}
 
 Yth. *${studentName}*,
 Terima kasih, pembayaran Anda telah berhasil kami terima dan verifikasi.
@@ -48,7 +70,7 @@ Terima kasih, pembayaran Anda telah berhasil kami terima dan verifikasi.
 - *Tanggal:* ${date}
 - *Nominal:* ${formatRupiah(amount)}
 - *Keterangan:* ${description}
-- *Sisa Piutang:* ${formatRupiah(remainingDebt)}
+- *Sisa Tunggakan Siswa:* ${formatRupiah(remainingDebt)}
 
 Pembayaran ini telah tercatat secara otomatis di Buku Induk Siswa. Silakan hubungi bagian Administrasi jika ada pertanyaan.
 _Pesan ini dikirim otomatis oleh Sistem Keuangan ${lembaga}._`;
@@ -59,20 +81,32 @@ export function formatReceivableNotification(
   studentName: string,
   totalBiaya: number,
   unpaidAmount: number,
-  lembaga: string = "LPK Nandita Floating Hotel"
+  lembaga: string = "LPK Nandita Floating Hotel",
+  customTemplate?: string
 ): string {
   const paidAmount = totalBiaya - unpaidAmount;
-  return `*PENGINGAT TAGIHAN PIUTANG SISWA* 📢
-LPK NANDITA FLOATING HOTEL & KAPAL PESIAR
+
+  if (customTemplate) {
+    return replacePlaceholders(customTemplate, {
+      "lembaga": lembaga,
+      "nama_siswa": studentName,
+      "total_biaya": formatRupiah(totalBiaya),
+      "terbayar": formatRupiah(paidAmount),
+      "sisa_piutang": formatRupiah(unpaidAmount)
+    });
+  }
+
+  return `*PENGINGAT TUNGGAKAN SISWA* 📢
+${lembaga}
 
 Yth. *${studentName}*,
 Kami menginfokan ringkasan administrasi keuangan pendidikan Anda:
 
 - *Total Biaya Pendidikan:* ${formatRupiah(totalBiaya)}
 - *Sudah Dibayarkan:* ${formatRupiah(paidAmount)}
-- *Sisa Piutang Aktif:* *${formatRupiah(unpaidAmount)}*
+- *Sisa Tunggakan Siswa:* *${formatRupiah(unpaidAmount)}*
 
-Mohon untuk segera melakukan pembayaran angsuran melalui transfer atau tunai ke bagian kasir LPK Nandita sebelum batas waktu program berakhir.
+Mohon untuk segera melakukan pembayaran angsuran melalui transfer atau tunai ke bagian kasir LPK sebelum batas waktu program berakhir.
 _Pesan ini dikirim otomatis oleh Sistem Keuangan ${lembaga}._`;
 }
 
@@ -83,10 +117,22 @@ export function formatIncomeNotification(
   description: string,
   amount: number,
   date: string,
-  lembaga: string = "LPK Nandita Floating Hotel"
+  lembaga: string = "LPK Nandita Floating Hotel",
+  customTemplate?: string
 ): string {
+  if (customTemplate) {
+    return replacePlaceholders(customTemplate, {
+      "lembaga": lembaga,
+      "tanggal": date,
+      "nominal": formatRupiah(amount),
+      "kategori": category,
+      "keterangan": description,
+      "penerima": penerima
+    });
+  }
+
   return `*NOTIFIKASI UANG MASUK (TRANSFER)* 💰
-LPK NANDITA FLOATING HOTEL & KAPAL PESIAR
+${lembaga}
 
 Telah diterima dana transfer masuk ke rekening lembaga:
 
@@ -110,10 +156,26 @@ export function formatSalaryNotification(
   deduction: number,
   net: number,
   date: string,
-  lembaga: string = "LPK Nandita Floating Hotel"
+  lembaga: string = "LPK Nandita Floating Hotel",
+  customTemplate?: string
 ): string {
+  if (customTemplate) {
+    return replacePlaceholders(customTemplate, {
+      "lembaga": lembaga,
+      "nama_staf": staffName,
+      "peran": role,
+      "bulan": month,
+      "tanggal": date,
+      "gaji_pokok": formatRupiah(basic),
+      "tunjangan": formatRupiah(allowance),
+      "lembur_bonus": formatRupiah(bonus),
+      "potongan": formatRupiah(deduction),
+      "take_home_pay": formatRupiah(net)
+    });
+  }
+
   return `*SLIP GAJI BULANAN RESMI (WHATSAPP)* 💼
-LPK NANDITA FLOATING HOTEL & KAPAL PESIAR
+${lembaga}
 
 Yth. *${staffName}* (${role}),
 Gaji Anda untuk periode *${month}* telah berhasil dibayarkan pada tanggal ${date}.

@@ -220,7 +220,7 @@ export default function ExcelDashboard({
                 </button>
                 <button 
                   id="btn-goto-finance"
-                  onClick={() => onSwitchSheet("Keuangan & Piutang")} 
+                  onClick={() => onSwitchSheet("Keuangan & Tunggakan Siswa")} 
                   className="bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs px-3 py-1.5 rounded-lg font-bold transition-all duration-300 shadow-md hover:scale-105"
                 >
                   Manajemen Keuangan →
@@ -443,13 +443,13 @@ export default function ExcelDashboard({
               <motion.div 
                 whileHover={{ y: -3 }}
                 className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-start justify-between cursor-pointer group"
-                onClick={() => onSwitchSheet("Keuangan & Piutang")}
+                onClick={() => onSwitchSheet("Keuangan & Tunggakan Siswa")}
               >
                 <div>
-                  <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Total Piutang Siswa</p>
+                  <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Total Tunggakan Siswa</p>
                   <h3 className="text-2xl font-bold mt-2 text-red-600 group-hover:text-red-700 transition-colors">{formatRupiah(totalPiutangSemua)}</h3>
                   <div className="flex items-center mt-3 text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-full w-max">
-                    <span>{keuangan.filter(k => k.piutang > 0).length} Siswa Menunggak</span>
+                    <span>{keuangan.filter(k => k.piutang > 0).length} Siswa Belum Lunas</span>
                   </div>
                 </div>
                 <div className="p-3 bg-red-50 rounded-xl text-red-600 group-hover:bg-[#001f3f] group-hover:text-amber-400 transition-all duration-300 shadow-sm">
@@ -587,8 +587,8 @@ export default function ExcelDashboard({
                 <div>
                   <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
                     <h4 className="text-xs font-bold font-mono uppercase text-[#001f3f] tracking-wider flex items-center">
-                      <BarChart3 className="w-4 h-4 mr-1.5 text-amber-500" />
-                      Arus Kas & Piutang Siswa
+                       <BarChart3 className="w-4 h-4 mr-1.5 text-amber-500" />
+                       Arus Kas & Tunggakan Siswa
                     </h4>
                     <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono font-bold">G11:I15</span>
                   </div>
@@ -612,7 +612,7 @@ export default function ExcelDashboard({
                         <div className="flex justify-between text-xs">
                           <span className="text-red-600 font-bold flex items-center">
                             <span className="w-2.5 h-2.5 rounded-full bg-red-500 mr-1.5"></span>
-                            Piutang
+                            Tunggakan Siswa
                           </span>
                           <span className="font-mono font-bold text-red-600">{formatRupiah(totalPiutangSemua)}</span>
                         </div>
@@ -635,7 +635,7 @@ export default function ExcelDashboard({
 
                 <div className="bg-[#001f3f]/5 p-3 rounded-xl border border-slate-100 text-[11px] text-slate-600">
                   <span className="font-bold text-[#001f3f] block mb-0.5">💰 Manajemen Tunggakan:</span>
-                  Tingkat piutang aktif terkendali di bawah 40%. Pantau secara berkala melalui menu Keuangan & Piutang.
+                  Tingkat tunggakan siswa terkendali di bawah 40%. Pantau secara berkala melalui menu Keuangan & Tunggakan Siswa.
                 </div>
               </div>
 
@@ -662,11 +662,13 @@ export default function ExcelDashboard({
                   { name: "Absensi Siswa", desc: "Log Kehadiran Siswa", color: "hover:border-amber-400 hover:bg-white/10" },
                   { name: "Absensi Instruktur", desc: "Log Kehadiran Instruktur & Staf", color: "hover:border-amber-400 hover:bg-white/10" },
                   { name: "Sertifikat", desc: "Sertifikasi Kompetisi & Cetak", color: "hover:border-amber-400 hover:bg-white/10" },
-                  { name: "Keuangan & Piutang", desc: "Akun Biaya & Kas Siswa", color: "hover:border-amber-400 hover:bg-white/10" },
+                  { name: "Keuangan & Tunggakan Siswa", desc: "Akun Biaya & Kas Siswa", color: "hover:border-amber-400 hover:bg-white/10" },
+                  { name: "Utang Pegawai", desc: "Sisa Pinjaman & Cicilan Staf", color: "hover:border-amber-400 hover:bg-white/10" },
                   { name: "Payroll Gaji", desc: "Penghitungan Gaji & Slip", color: "hover:border-amber-400 hover:bg-white/10" },
-                  { name: "Lowongan / Job", desc: "Daftar Kerja DN & LN", color: "hover:border-amber-400 hover:bg-white/10" },
+                  { name: "Lowongan / Job", displayName: "Job Register / Lowongan", desc: "Daftar Kerja DN & LN", color: "hover:border-amber-400 hover:bg-white/10" },
                   { name: "Integrasi Google Sheets", desc: "Sinkronisasi Cloud Drive", color: "hover:border-amber-400 hover:bg-white/10" },
                   { name: "Pengaturan", desc: "Logo, Nama, Direktur & Cetak", color: "hover:border-amber-400 hover:bg-white/10" }
+                                 
                 ].map((sheet) => (
                   <button
                     key={sheet.name}
@@ -674,7 +676,7 @@ export default function ExcelDashboard({
                     onClick={() => onSwitchSheet(sheet.name)}
                     className={`p-3 bg-[#001124]/70 border border-slate-800/80 rounded-xl text-left shadow-sm transition-all duration-300 group cursor-pointer ${sheet.color}`}
                   >
-                    <span className="font-bold text-xs text-white block group-hover:text-amber-400 transition-colors duration-200">{sheet.name}</span>
+                    <span className="font-bold text-xs text-white block group-hover:text-amber-400 transition-colors duration-200">{sheet.displayName || sheet.name}</span>
                     <span className="text-[10px] text-slate-400 block mt-1 group-hover:text-slate-200 transition-colors duration-200">{sheet.desc}</span>
                   </button>
                 ))}

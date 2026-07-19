@@ -214,6 +214,73 @@ export default function App() {
     localStorage.setItem("lpk_kat_pengeluaran", JSON.stringify(nextKatPengeluaran));
   };
 
+  const handleRestoreAllData = (data: {
+    siswa?: Siswa[];
+    staff?: Staff[];
+    absensi?: Absensi[];
+    keuangan?: KeuanganSiswa[];
+    pendapatanLain?: PendapatanLain[];
+    pengeluaranKas?: PengeluaranKas[];
+    schoolSettings?: SchoolSettings;
+  }) => {
+    let nextSettings = schoolSettings;
+    let nextSiswa = siswa;
+    let nextStaff = staff;
+    let nextAbsensi = absensi;
+    let nextKeuangan = keuangan;
+    let nextPendapatanLain = pendapatanLain;
+    let nextPengeluaranKas = pengeluaranKas;
+
+    if (data.schoolSettings) {
+      setSchoolSettings(data.schoolSettings);
+      nextSettings = data.schoolSettings;
+    }
+    if (data.siswa) {
+      setSiswa(data.siswa);
+      nextSiswa = data.siswa;
+    }
+    if (data.staff) {
+      setStaff(data.staff);
+      nextStaff = data.staff;
+    }
+    if (data.absensi) {
+      setAbsensi(data.absensi);
+      nextAbsensi = data.absensi;
+    }
+    if (data.keuangan) {
+      setKeuangan(data.keuangan);
+      nextKeuangan = data.keuangan;
+    }
+    if (data.pendapatanLain) {
+      setPendapatanLain(data.pendapatanLain);
+      nextPendapatanLain = data.pendapatanLain;
+    }
+    if (data.pengeluaranKas) {
+      setPengeluaranKas(data.pengeluaranKas);
+      nextPengeluaranKas = data.pengeluaranKas;
+    }
+
+    saveAllToLocalStorage(
+      nextSettings,
+      nextSiswa,
+      nextStaff,
+      nextAbsensi,
+      sertifikat,
+      nextKeuangan,
+      pembayaranLog,
+      payroll,
+      jobs,
+      customTabs,
+      userAccounts,
+      tagihan,
+      nextPendapatanLain,
+      nextPengeluaranKas,
+      utangPegawai,
+      jenisPendapatan,
+      katPengeluaran
+    );
+  };
+
   // 3. Mutation Operations
 
   // SISWA
@@ -542,7 +609,7 @@ export default function App() {
     saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, keuangan, pembayaranLog, payroll, jobs, customTabs, updated);
   };
 
-  // TAGIHAN SISWA ACTIONS
+  // TUNGGAKAN SISWA ACTIONS
   const handleAddTagihan = (newTagihan: TagihanSiswa) => {
     const updated = [...tagihan, newTagihan];
     setTagihan(updated);
@@ -835,7 +902,7 @@ export default function App() {
             schoolSettings={schoolSettings}
           />
         );
-      case "Keuangan & Piutang":
+      case "Keuangan & Tunggakan Siswa":
         return (
           <KeuanganSheet 
             keuangan={keuangan}
@@ -846,6 +913,7 @@ export default function App() {
             onUpdateBiayaSiswa={handleUpdateBiayaSiswa}
             onAddKeuanganAccount={handleAddKeuanganAccount}
             onTriggerWhatsApp={(notif) => setPendingWhatsApp(notif)}
+            schoolSettings={schoolSettings}
           />
         );
       case "Payroll Gaji":
@@ -880,7 +948,7 @@ export default function App() {
             addUserTrigger={addUserTrigger}
           />
         );
-      case "Tagihan Siswa":
+      case "Tunggakan Siswa":
         return (
           <TagihanSiswaSheet
             tagihanList={tagihan}
@@ -889,6 +957,7 @@ export default function App() {
             onDeleteTagihan={handleDeleteTagihan}
             onMarkAsPaid={handleMarkTagihanAsPaid}
             onTriggerWhatsApp={(notif) => setPendingWhatsApp(notif)}
+            schoolSettings={schoolSettings}
           />
         );
       case "Kas Operasional":
@@ -909,6 +978,7 @@ export default function App() {
             onDeleteKatPengeluaran={handleDeleteKatPengeluaran}
             onTriggerWhatsApp={(notif) => setPendingWhatsApp(notif)}
             onResetPembayaranLog={handleResetPayments}
+            schoolSettings={schoolSettings}
           />
         );
       case "Utang Pegawai":
@@ -950,6 +1020,8 @@ export default function App() {
             pendapatanLain={pendapatanLain}
             pengeluaranKas={pengeluaranKas}
             tagihan={tagihan}
+            schoolSettings={schoolSettings}
+            onRestoreAllData={handleRestoreAllData}
           />
         );
       case "Tagihan Saya":
@@ -1000,8 +1072,8 @@ export default function App() {
     { name: "Absensi Siswa", icon: CalendarDays },
     { name: "Absensi Instruktur", icon: CalendarDays },
     { name: "Sertifikat", icon: Award },
-    { name: "Keuangan & Piutang", icon: Coins },
-    { name: "Tagihan Siswa", icon: Receipt },
+    { name: "Keuangan & Tunggakan Siswa", icon: Coins },
+    { name: "Tunggakan Siswa", icon: Receipt },
     { name: "Kas Operasional", icon: TrendingUp },
     { name: "Utang Pegawai", icon: Coins },
     { name: "Payroll Gaji", icon: Coins },

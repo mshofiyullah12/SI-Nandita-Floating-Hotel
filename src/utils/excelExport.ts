@@ -163,20 +163,20 @@ export function exportAllToExcel({
   const wsPembayaran = XLSX.utils.json_to_sheet(formattedPembayaranLog);
   XLSX.utils.book_append_sheet(wb, wsPembayaran, "Log Transaksi Masuk");
 
-  // 7. SHEET: INVOICES & TAGIHAN SISWA
+  // 7. SHEET: INVOICES & TUNGGAKAN SISWA
   const formattedTagihan = tagihan.map((t, idx) => ({
     "No": idx + 1,
-    "ID Tagihan": t.id,
+    "ID Tunggakan": t.id,
     "ID Siswa": t.siswaId,
     "Nama Siswa": t.siswaNama,
-    "Nama Tagihan": t.namaTagihan,
-    "Nominal Tagihan (Rp)": t.jumlah,
+    "Nama Tunggakan": t.namaTagihan,
+    "Nominal Tunggakan (Rp)": t.jumlah,
     "Tanggal Terbit": t.tanggalTagihan,
     "Status": t.status,
     "Keterangan Deskripsi": t.deskripsi || "-"
   }));
   const wsTagihan = XLSX.utils.json_to_sheet(formattedTagihan);
-  XLSX.utils.book_append_sheet(wb, wsTagihan, "Tagihan Lain Siswa");
+  XLSX.utils.book_append_sheet(wb, wsTagihan, "Tunggakan Lain Siswa");
 
   // 8. SHEET: PAYROLL & GAJI PEGAWAI
   const formattedPayroll = payroll.map((p, idx) => ({

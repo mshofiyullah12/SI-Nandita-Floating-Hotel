@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PendapatanLain, PengeluaranKas, PembayaranLog } from "../types";
+import { PendapatanLain, PengeluaranKas, PembayaranLog, SchoolSettings } from "../types";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -39,6 +39,7 @@ interface PendapatanPengeluaranSheetProps {
   onDeleteKatPengeluaran: (category: string) => void;
   onTriggerWhatsApp?: (notif: WhatsAppNotification) => void;
   onResetPembayaranLog?: () => void;
+  schoolSettings?: SchoolSettings;
 }
 
 export default function PendapatanPengeluaranSheet({
@@ -56,7 +57,8 @@ export default function PendapatanPengeluaranSheet({
   onDeleteJenisPendapatan,
   onDeleteKatPengeluaran,
   onTriggerWhatsApp,
-  onResetPembayaranLog
+  onResetPembayaranLog,
+  schoolSettings
 }: PendapatanPengeluaranSheetProps) {
   // Tab states
   const [activeSubTab, setActiveSubTab] = useState<"pendapatan" | "pengeluaran" | "riwayat">("pendapatan");
@@ -115,7 +117,9 @@ export default function PendapatanPengeluaranSheet({
         categoryToSave,
         incKeterangan.trim(),
         Number(incJumlah),
-        incTanggal
+        incTanggal,
+        schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
+        schoolSettings?.waTemplateDanaMasuk
       );
       onTriggerWhatsApp({
         recipientName: incPenerima.trim(),
@@ -586,7 +590,9 @@ export default function PendapatanPengeluaranSheet({
                               p.kategori,
                               p.keterangan,
                               p.jumlah,
-                              p.tanggal
+                              p.tanggal,
+                              schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
+                              schoolSettings?.waTemplateDanaMasuk
                             );
                             if (onTriggerWhatsApp) {
                               onTriggerWhatsApp({

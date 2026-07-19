@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { TagihanSiswa, Siswa } from "../types";
+import { TagihanSiswa, Siswa, SchoolSettings } from "../types";
 import { Plus, Search, Receipt, Trash2, CheckCircle2, AlertCircle, RefreshCw, UserCheck } from "lucide-react";
 import { formatReceivableNotification, WhatsAppNotification } from "../utils/whatsapp";
 
@@ -10,6 +10,7 @@ interface TagihanSiswaSheetProps {
   onDeleteTagihan: (id: string) => void;
   onMarkAsPaid: (id: string) => void;
   onTriggerWhatsApp?: (notif: WhatsAppNotification) => void;
+  schoolSettings?: SchoolSettings;
 }
 
 export default function TagihanSiswaSheet({
@@ -19,6 +20,7 @@ export default function TagihanSiswaSheet({
   onDeleteTagihan,
   onMarkAsPaid,
   onTriggerWhatsApp,
+  schoolSettings,
 }: TagihanSiswaSheetProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"Semua" | "Lunas" | "Belum Lunas">("Semua");
@@ -87,10 +89,10 @@ export default function TagihanSiswaSheet({
           </span>
           <h2 className="text-xl font-bold text-slate-950 font-display mt-2 flex items-center">
             <Receipt className="w-5 h-5 text-[#001f3f] mr-2" />
-            Master Tagihan Siswa LPK
+            Master Tunggakan Siswa LPK
           </h2>
           <p className="text-xs text-slate-500 mt-1 font-sans">
-            Rincian jenis tagihan operasional (SPP, Jas Almamater, Buku, Ujian) yang dibebankan per siswa.
+            Rincian jenis tunggakan operasional (SPP, Jas Almamater, Buku, Ujian) yang dibebankan per siswa.
           </p>
         </div>
 
@@ -100,7 +102,7 @@ export default function TagihanSiswaSheet({
           className="mt-4 md:mt-0 px-4 py-2 bg-[#001f3f] hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center w-max"
         >
           <Plus className="w-4 h-4 mr-1.5 text-amber-400" />
-          Tambah Tagihan Baru
+          Tambah Tunggakan Baru
         </button>
       </div>
 
@@ -112,7 +114,7 @@ export default function TagihanSiswaSheet({
           <input
             id="search-tagihan"
             type="text"
-            placeholder="Cari siswa atau nama tagihan..."
+            placeholder="Cari siswa atau nama tunggakan..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full text-xs focus:outline-none placeholder-slate-400 text-slate-700 font-sans"
@@ -136,7 +138,7 @@ export default function TagihanSiswaSheet({
         {/* Quick totals */}
         <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between">
           <div>
-            <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block">Total Tagihan</span>
+            <span className="text-[9px] font-mono text-slate-400 uppercase tracking-wider block">Total Tunggakan</span>
             <span className="text-sm font-bold font-mono text-slate-800">
               {formatRupiah(filteredTagihan.reduce((acc, t) => acc + t.jumlah, 0))}
             </span>
@@ -154,7 +156,7 @@ export default function TagihanSiswaSheet({
                 <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-mono text-slate-500 uppercase tracking-wider">
                   <th className="py-3 px-4">ID</th>
                   <th className="py-3 px-4">Nama Siswa</th>
-                  <th className="py-3 px-4">Rincian Tagihan</th>
+                  <th className="py-3 px-4">Rincian Tunggakan</th>
                   <th className="py-3 px-4">Nominal</th>
                   <th className="py-3 px-4">Tanggal Beban</th>
                   <th className="py-3 px-4">Status</th>
@@ -201,18 +203,24 @@ export default function TagihanSiswaSheet({
                               onClick={() => {
                                 const targetSiswa = siswaList.find(s => s.nama === t.siswaNama);
                                 const phone = targetSiswa ? targetSiswa.noHp : "";
-                                const msg = formatReceivableNotification(t.siswaNama, t.jumlah, t.jumlah);
+                                const msg = formatReceivableNotification(
+                                  t.siswaNama,
+                                  t.jumlah,
+                                  t.jumlah,
+                                  schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
+                                  schoolSettings?.waTemplateTagihanSiswa
+                                );
                                 if (onTriggerWhatsApp) {
                                   onTriggerWhatsApp({
                                     recipientName: t.siswaNama,
                                     phone,
-                                    category: "Piutang Siswa",
+                                    category: "Tunggakan Siswa",
                                     message: msg
                                   });
                                 }
                               }}
                               className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-bold shadow-sm transition cursor-pointer"
-                              title="Kirim Tagihan via WhatsApp"
+                              title="Kirim Tunggakan via WhatsApp"
                             >
                               Kirim WA
                             </button>
@@ -227,12 +235,12 @@ export default function TagihanSiswaSheet({
                         )}
                         <button
                           onClick={() => {
-                            if (confirm(`Hapus data tagihan "${t.namaTagihan}" milik ${t.siswaNama}?`)) {
+                            if (confirm(`Hapus data tunggakan "${t.namaTagihan}" milik ${t.siswaNama}?`)) {
                               onDeleteTagihan(t.id);
                             }
                           }}
                           className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition"
-                          title="Hapus Tagihan"
+                          title="Hapus Tunggakan"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -243,7 +251,7 @@ export default function TagihanSiswaSheet({
                 {filteredTagihan.length === 0 && (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-slate-400 italic">
-                      Tidak ada data tagihan ditemukan
+                      Tidak ada data tunggakan ditemukan
                     </td>
                   </tr>
                 )}
@@ -257,7 +265,7 @@ export default function TagihanSiswaSheet({
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md p-6 h-max">
             <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center">
               <Receipt className="w-4 h-4 text-amber-500 mr-1.5" />
-              Bebankan Tagihan Baru
+              Bebankan Tunggakan Baru
             </h3>
 
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
@@ -283,7 +291,7 @@ export default function TagihanSiswaSheet({
 
               <div className="space-y-1">
                 <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
-                  Nama / Rincian Tagihan <span className="text-red-500">*</span>
+                  Nama / Rincian Tunggakan <span className="text-red-500">*</span>
                 </label>
                 <input
                   id="tagihan-nama"
@@ -314,7 +322,7 @@ export default function TagihanSiswaSheet({
 
                 <div className="space-y-1">
                   <label className="text-[10px] font-mono text-slate-400 uppercase tracking-wider block">
-                    Tanggal Tagihan
+                    Tanggal Tunggakan
                   </label>
                   <input
                     id="tagihan-tanggal"
@@ -333,7 +341,7 @@ export default function TagihanSiswaSheet({
                 </label>
                 <textarea
                   id="tagihan-deskripsi"
-                  placeholder="e.g. Tagihan seragam praktik kuliner lengkap..."
+                  placeholder="e.g. Tunggakan seragam praktik kuliner lengkap..."
                   value={deskripsi}
                   onChange={(e) => setDeskripsi(e.target.value)}
                   className="w-full h-16 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-700 bg-slate-50/30 focus:outline-none focus:ring-1 focus:ring-[#001f3f] resize-none"

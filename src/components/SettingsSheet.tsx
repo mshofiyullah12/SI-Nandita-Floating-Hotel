@@ -5,7 +5,7 @@
 
 import React, { useState, useRef } from "react";
 import { SchoolSettings } from "../types";
-import { Save, RefreshCw, HelpCircle, Check, Palette, Upload, Trash2, Image, CreditCard } from "lucide-react";
+import { Save, RefreshCw, HelpCircle, Check, Palette, Upload, Trash2, Image, CreditCard, FileSpreadsheet, MessageSquare } from "lucide-react";
 import NanditaLogo from "./NanditaLogo";
 
 interface SettingsSheetProps {
@@ -376,11 +376,70 @@ export default function SettingsSheet({
             </p>
           </div>
 
-          {/* Section 5: Visual App Style Customizer */}
+          {/* Section 5: Integrasi Penyimpanan Google Sheets & Google Drive */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4" id="settings-google-sheets-card">
+            <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center">
+              <FileSpreadsheet className="w-4 h-4 mr-1.5 text-teal-700" />
+              <span>5. Integrasi Penyimpanan Google Sheets & Google Drive</span>
+            </h3>
+
+            <div className="space-y-4">
+              <p className="text-xs text-gray-600 leading-relaxed">
+                Konfigurasikan sinkronisasi otomatis dan cadangan penyimpanan cloud LPK Nandita langsung ke Google Drive dan spreadsheet Google Sheets Anda.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Spreadsheet ID Target (Default)</label>
+                  <input
+                    type="text"
+                    value={formData.googleSpreadsheetId || ""}
+                    onChange={(e) => setFormData({ ...formData, googleSpreadsheetId: e.target.value })}
+                    placeholder="e.g. 1x_A_bCD-efG12345..."
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-xs focus:outline-none font-mono"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Biarkan kosong atau isi <code className="bg-slate-100 px-1 py-0.5 rounded font-bold">NEW</code> untuk membuat Spreadsheet baru secara otomatis saat penyelarasan pertama.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1.5">Otomatisasi Sinkronisasi</label>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <input
+                      type="checkbox"
+                      id="autoSyncEnabled"
+                      checked={!!formData.autoSyncEnabled}
+                      onChange={(e) => setFormData({ ...formData, autoSyncEnabled: e.target.checked })}
+                      className="w-4 h-4 text-teal-650 border-gray-300 rounded focus:ring-teal-500"
+                    />
+                    <label htmlFor="autoSyncEnabled" className="text-xs font-medium text-gray-700 cursor-pointer select-none">
+                      Aktifkan Sinkronisasi Otomatis Cloud Drive
+                    </label>
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-1.5">
+                    Ketika diaktifkan, data transaksi harian dan log absensi akan diselaraskan dengan Google Cloud Drive.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3.5 text-xs text-amber-850 flex items-start space-x-2.5">
+                <HelpCircle className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  <span className="font-bold block">💡 Petunjuk Penyimpanan Cloud:</span>
+                  <p className="leading-relaxed text-[11px] text-slate-700">
+                    Untuk menggunakan fitur integrasi ini, pastikan Anda juga masuk melalui lembar kerja <strong className="text-teal-900">"Integrasi Google Sheets"</strong> di menu tab utama untuk memberikan izin hak akses Google Drive yang aman.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 6: Visual App Style Customizer */}
           <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
             <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center">
               <Palette className="w-4 h-4 mr-1 text-teal-700" />
-              5. Visual & Tema Aplikasi
+              6. Visual & Tema Aplikasi
             </h3>
 
             <div>
@@ -404,6 +463,80 @@ export default function SettingsSheet({
                     </button>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 7: Kustomisasi Pesan Notifikasi WhatsApp */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+            <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center">
+              <MessageSquare className="w-4 h-4 mr-1 text-teal-700" />
+              7. Kustomisasi Isi Pesan Notifikasi WhatsApp
+            </h3>
+
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Atur format pesan otomatis yang dikirim ke siswa atau staf melalui WhatsApp. Anda dapat menggunakan tag variabel (placeholder) dinamis seperti <code className="bg-slate-100 px-1 py-0.5 rounded font-bold text-teal-800">{`{nama_siswa}`}</code>, <code className="bg-slate-100 px-1 py-0.5 rounded font-bold text-teal-800">{`{nominal}`}</code>, dll. yang akan otomatis diganti dengan data transaksi.
+            </p>
+
+            <div className="space-y-4">
+              {/* Template 1: Bukti Pembayaran Siswa */}
+              <div className="border border-gray-200 rounded-lg p-4 space-y-2">
+                <span className="block text-xs font-bold text-gray-700">A. Template WhatsApp Bukti Pembayaran Siswa</span>
+                <textarea
+                  rows={4}
+                  value={formData.waTemplatePembayaran || ""}
+                  onChange={(e) => setFormData({ ...formData, waTemplatePembayaran: e.target.value })}
+                  placeholder="Ketik format template bukti pembayaran..."
+                  className="w-full border border-gray-300 rounded p-2 text-xs font-mono focus:outline-none"
+                />
+                <div className="text-[10px] text-gray-500">
+                  <strong>Variabel tersedia:</strong> <code className="bg-slate-50 px-1 rounded">{`{lembaga}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{nama_siswa}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{tanggal}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{nominal}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{keterangan}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{sisa_piutang}`}</code>
+                </div>
+              </div>
+
+              {/* Template 2: Pengingat Tunggakan Siswa */}
+              <div className="border border-gray-200 rounded-lg p-4 space-y-2">
+                <span className="block text-xs font-bold text-gray-700">B. Template WhatsApp Pengingat Tunggakan Siswa</span>
+                <textarea
+                  rows={4}
+                  value={formData.waTemplateTagihanSiswa || ""}
+                  onChange={(e) => setFormData({ ...formData, waTemplateTagihanSiswa: e.target.value })}
+                  placeholder="Ketik format template pengingat tagihan..."
+                  className="w-full border border-gray-300 rounded p-2 text-xs font-mono focus:outline-none"
+                />
+                <div className="text-[10px] text-gray-500">
+                  <strong>Variabel tersedia:</strong> <code className="bg-slate-50 px-1 rounded">{`{lembaga}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{nama_siswa}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{total_biaya}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{terbayar}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{sisa_piutang}`}</code>
+                </div>
+              </div>
+
+              {/* Template 3: Slip Gaji Staf & Instruktur */}
+              <div className="border border-gray-200 rounded-lg p-4 space-y-2">
+                <span className="block text-xs font-bold text-gray-700">C. Template WhatsApp Slip Gaji Staf & Instruktur</span>
+                <textarea
+                  rows={4}
+                  value={formData.waTemplateGaji || ""}
+                  onChange={(e) => setFormData({ ...formData, waTemplateGaji: e.target.value })}
+                  placeholder="Ketik format template slip gaji..."
+                  className="w-full border border-gray-300 rounded p-2 text-xs font-mono focus:outline-none"
+                />
+                <div className="text-[10px] text-gray-500">
+                  <strong>Variabel tersedia:</strong> <code className="bg-slate-50 px-1 rounded">{`{lembaga}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{nama_staf}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{peran}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{bulan}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{tanggal}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{gaji_pokok}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{tunjangan}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{lembur_bonus}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{potongan}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{take_home_pay}`}</code>
+                </div>
+              </div>
+
+              {/* Template 4: Notifikasi Transfer Uang Masuk */}
+              <div className="border border-gray-200 rounded-lg p-4 space-y-2">
+                <span className="block text-xs font-bold text-gray-700">D. Template WhatsApp Notifikasi Uang Masuk</span>
+                <textarea
+                  rows={4}
+                  value={formData.waTemplateDanaMasuk || ""}
+                  onChange={(e) => setFormData({ ...formData, waTemplateDanaMasuk: e.target.value })}
+                  placeholder="Ketik format template uang masuk..."
+                  className="w-full border border-gray-300 rounded p-2 text-xs font-mono focus:outline-none"
+                />
+                <div className="text-[10px] text-gray-500">
+                  <strong>Variabel tersedia:</strong> <code className="bg-slate-50 px-1 rounded">{`{lembaga}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{tanggal}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{nominal}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{kategori}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{keterangan}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{penerima}`}</code>
+                </div>
               </div>
             </div>
           </div>

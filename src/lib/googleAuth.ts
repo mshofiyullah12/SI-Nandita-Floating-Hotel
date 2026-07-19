@@ -197,3 +197,28 @@ export const fetchUserSpreadsheets = async (accessToken: string): Promise<any[]>
   const data = await response.json();
   return data.files || [];
 };
+
+// Fetch sheet cell values for a given range (e.g. "'Data Siswa'!A1:K1000")
+export const getSheetValues = async (
+  accessToken: string,
+  spreadsheetId: string,
+  range: string
+): Promise<any[][] | null> => {
+  const response = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}`,
+    {
+      headers: {
+        "Authorization": `Bearer ${accessToken}`,
+      },
+    }
+  );
+
+  if (!response.ok) {
+    if (response.status === 404) return null; // tab or sheet might not exist yet
+    const err = await response.json();
+    throw new Error(err.error?.message || `Gagal mengambil data dari range ${range}`);
+  }
+
+  const data = await response.json();
+  return data.values || null;
+};

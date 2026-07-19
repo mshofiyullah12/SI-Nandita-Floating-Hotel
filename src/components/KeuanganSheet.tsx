@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from "react";
-import { KeuanganSiswa, PembayaranLog, Siswa } from "../types";
+import { KeuanganSiswa, PembayaranLog, Siswa, SchoolSettings } from "../types";
 import { formatRupiah } from "../utils";
 import { Plus, Search, DollarSign, History, AlertCircle, Receipt, Trash2 } from "lucide-react";
 import { formatPaymentNotification, formatReceivableNotification, WhatsAppNotification } from "../utils/whatsapp";
@@ -18,6 +18,7 @@ interface KeuanganSheetProps {
   onUpdateBiayaSiswa: (keuanganSiswaId: string, newTotalBiaya: number) => void;
   onAddKeuanganAccount: (newAccount: KeuanganSiswa) => void;
   onTriggerWhatsApp?: (notif: WhatsAppNotification) => void;
+  schoolSettings?: SchoolSettings;
 }
 
 export default function KeuanganSheet({
@@ -28,7 +29,8 @@ export default function KeuanganSheet({
   onDeletePayment,
   onUpdateBiayaSiswa,
   onAddKeuanganAccount,
-  onTriggerWhatsApp
+  onTriggerWhatsApp,
+  schoolSettings
 }: KeuanganSheetProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("All");
@@ -76,7 +78,7 @@ export default function KeuanganSheet({
     }
 
     if (payAmount > activeAccountDetails.piutang) {
-      if (!confirm(`Peringatan: Jumlah pembayaran (${formatRupiah(payAmount)}) melebihi sisa piutang (${formatRupiah(activeAccountDetails.piutang)}). Tetap lanjutkan?`)) {
+      if (!confirm(`Peringatan: Jumlah pembayaran (${formatRupiah(payAmount)}) melebihi sisa tagihan (${formatRupiah(activeAccountDetails.piutang)}). Tetap lanjutkan?`)) {
         return;
       }
     }
@@ -121,7 +123,9 @@ export default function KeuanganSheet({
         payAmount,
         payNotes,
         payDate,
-        currentRemainingPiutang
+        currentRemainingPiutang,
+        schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
+        schoolSettings?.waTemplatePembayaran
       );
       
       onTriggerWhatsApp({
@@ -201,7 +205,7 @@ export default function KeuanganSheet({
           <span className="text-sm font-mono font-bold text-green-700 mt-1 block">{formatRupiah(totalRealisasi)}</span>
         </div>
         <div className="bg-white border border-red-200 p-2.5 rounded shadow-sm">
-          <span className="text-[10px] font-mono text-red-700 uppercase block font-bold">Piutang / Tunggakan Aktif</span>
+          <span className="text-[10px] font-mono text-red-700 uppercase block font-bold">Total Tunggakan Siswa Aktif</span>
           <span className="text-sm font-mono font-bold text-red-600 mt-1 block">{formatRupiah(totalPiutangActive)}</span>
         </div>
         <div className="flex items-center justify-end space-x-2">
@@ -255,7 +259,7 @@ export default function KeuanganSheet({
             }`}
           >
             <DollarSign className="w-3.5 h-3.5" />
-            <span>Rincian & Bayar Piutang</span>
+            <span>Rincian & Bayar Tunggakan Siswa</span>
           </button>
         </div>
 
@@ -293,8 +297,8 @@ export default function KeuanganSheet({
         <div className="text-gray-400 font-bold">fx</div>
         <div className="border border-gray-300 px-2 py-0.5 rounded flex-grow bg-gray-50 truncate min-h-[22px]">
           {selectedRowId 
-            ? `=REC_PIUTANG(TOTAL_BIAYA: ${keuangan.find(k => k.id === selectedRowId)?.totalBiaya}, TOTAL_BAYAR: ${keuangan.find(k => k.id === selectedRowId)?.totalBayar}, SISA_PIUTANG: [Formula: B${keuangan.findIndex(k => k.id === selectedRowId) + 2} - C${keuangan.findIndex(k => k.id === selectedRowId) + 2}] = ${keuangan.find(k => k.id === selectedRowId)?.piutang})`
-            : "Formula Bar: Formula piutang otomatis menghitung [Sisa Piutang = Total Biaya - Total Bayar] secara dinamis."
+            ? `=REC_TAGIHAN(TOTAL_BIAYA: ${keuangan.find(k => k.id === selectedRowId)?.totalBiaya}, TOTAL_BAYAR: ${keuangan.find(k => k.id === selectedRowId)?.totalBayar}, SISA_TAGIHAN: [Formula: B${keuangan.findIndex(k => k.id === selectedRowId) + 2} - C${keuangan.findIndex(k => k.id === selectedRowId) + 2}] = ${keuangan.find(k => k.id === selectedRowId)?.piutang})`
+            : "Formula Bar: Formula otomatis menghitung [Sisa Tagihan = Total Biaya - Total Bayar] secara dinamis."
           }
         </div>
       </div>
@@ -309,7 +313,7 @@ export default function KeuanganSheet({
               <th className="px-3 py-1 border-r border-gray-300">Nama Siswa / Pembayar (A)</th>
               <th className="px-3 py-1 border-r border-gray-300 w-48 text-right">Total Biaya Pendidikan (B)</th>
               <th className="px-3 py-1 border-r border-gray-300 w-44 text-right">Jumlah Terbayar (C)</th>
-              <th className="px-3 py-1 border-r border-gray-300 w-44 text-right text-red-600">Sisa Piutang/Tunggakan (D)</th>
+              <th className="px-3 py-1 border-r border-gray-300 w-44 text-right text-red-600">Sisa Tunggakan Siswa (D)</th>
               <th className="px-3 py-1 border-r border-gray-300 w-32 text-center">Tgl Bayar Terakhir</th>
               <th className="px-3 py-1 border-r border-gray-300 w-32 text-center">Status (E)</th>
               <th className="px-3 py-1 text-center w-28">Operasi</th>
@@ -377,20 +381,26 @@ export default function KeuanganSheet({
                           e.stopPropagation();
                           const targetSiswa = siswa.find(s => s.id === acc.siswaId);
                           const phone = targetSiswa ? targetSiswa.noHp : "";
-                          const msg = formatReceivableNotification(acc.siswaNama, acc.totalBiaya, acc.piutang);
+                          const msg = formatReceivableNotification(
+                            acc.siswaNama,
+                            acc.totalBiaya,
+                            acc.piutang,
+                            schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
+                            schoolSettings?.waTemplateTagihanSiswa
+                          );
                           if (onTriggerWhatsApp) {
                             onTriggerWhatsApp({
                               recipientName: acc.siswaNama,
                               phone,
-                              category: "Piutang Siswa",
+                              category: "Tunggakan Siswa",
                               message: msg
                             });
                           }
                         }}
                         className="px-2 py-0.5 text-[10px] bg-emerald-600 text-white font-sans font-semibold rounded hover:bg-emerald-700 cursor-pointer inline-flex items-center"
-                        title="Kirim Tagihan via WhatsApp"
+                        title="Kirim Tunggakan via WhatsApp"
                       >
-                        WA Tagihan
+                        WA Tunggakan
                       </button>
                     )}
                   </td>
@@ -451,7 +461,7 @@ export default function KeuanganSheet({
                   </span>
                 </div>
                 <div className="text-center">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase block">Sisa Piutang</span>
+                  <span className="text-[10px] font-bold text-gray-500 uppercase block">Sisa Tunggakan Siswa</span>
                   <span className="font-mono text-xs font-bold text-red-600 mt-1 block">
                     {formatRupiah(activeAccountDetails.piutang)}
                   </span>
@@ -503,7 +513,15 @@ export default function KeuanganSheet({
                                 e.stopPropagation();
                                 const targetSiswa = siswa.find(s => s.nama === log.siswaNama);
                                 const phone = targetSiswa ? targetSiswa.noHp : "";
-                                const msg = formatPaymentNotification(log.siswaNama, log.jumlahBayar, log.keterangan || "Pembayaran", log.tanggalBayar, activeAccountDetails.piutang);
+                                const msg = formatPaymentNotification(
+                                  log.siswaNama,
+                                  log.jumlahBayar,
+                                  log.keterangan || "Pembayaran",
+                                  log.tanggalBayar,
+                                  activeAccountDetails.piutang,
+                                  schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
+                                  schoolSettings?.waTemplatePembayaran
+                                );
                                 if (onTriggerWhatsApp) {
                                   onTriggerWhatsApp({
                                     recipientName: log.siswaNama,

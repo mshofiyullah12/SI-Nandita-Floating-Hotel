@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from "react";
-import { Payroll, Staff, StaffRole } from "../types";
+import { Payroll, Staff, StaffRole, SchoolSettings } from "../types";
 import { formatRupiah } from "../utils";
 import { Plus, Trash2, Printer, Search, DollarSign, Receipt, CreditCard } from "lucide-react";
 import { formatSalaryNotification, WhatsAppNotification } from "../utils/whatsapp";
@@ -14,11 +14,7 @@ interface GajiPayrollSheetProps {
   staff: Staff[];
   onAddPayroll: (newPayroll: Payroll) => void;
   onDeletePayroll: (payrollId: string) => void;
-  schoolSettings: {
-    namaLembaga: string;
-    alamat: string;
-    direkturNama: string;
-  };
+  schoolSettings: SchoolSettings;
   onTriggerWhatsApp?: (notif: WhatsAppNotification) => void;
 }
 
@@ -111,7 +107,9 @@ export default function GajiPayrollSheet({
         lemburBonus,
         potongan,
         netSalary,
-        new Date().toISOString().split("T")[0]
+        new Date().toISOString().split("T")[0],
+        schoolSettings.namaLembaga || "LPK Nandita Floating Hotel",
+        schoolSettings.waTemplateGaji
       );
       onTriggerWhatsApp({
         recipientName: selected.nama,
@@ -304,7 +302,9 @@ export default function GajiPayrollSheet({
                             pay.lemburBonus,
                             pay.potongan,
                             pay.totalGaji,
-                            pay.tanggalBayar !== "-" ? pay.tanggalBayar : new Date().toISOString().split("T")[0]
+                            pay.tanggalBayar !== "-" ? pay.tanggalBayar : new Date().toISOString().split("T")[0],
+                            schoolSettings.namaLembaga || "LPK Nandita Floating Hotel",
+                            schoolSettings.waTemplateGaji
                           );
                           if (onTriggerWhatsApp) {
                             onTriggerWhatsApp({

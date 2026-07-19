@@ -41,7 +41,61 @@ export const initialSchoolSettings: SchoolSettings = {
   akreditasi: "Terakreditasi A (Sangat Baik) - LA-LPK",
   bankNama: "Bank Mandiri",
   bankRekening: "142-00-1234567-8",
-  bankAtasNama: "LPK NANDITA FLOATING HOTEL"
+  bankAtasNama: "LPK NANDITA FLOATING HOTEL",
+  googleSpreadsheetId: "",
+  autoSyncEnabled: false,
+  waTemplatePembayaran: `*BUKTI PEMBAYARAN RESMI* ✅
+{lembaga}
+
+Yth. *{nama_siswa}*,
+Terima kasih, pembayaran Anda telah berhasil kami terima dan verifikasi.
+
+*Rincian Transaksi:*
+- *Tanggal:* {tanggal}
+- *Nominal:* {nominal}
+- *Keterangan:* {keterangan}
+- *Sisa Tunggakan Siswa:* {sisa_piutang}
+
+Pembayaran ini telah tercatat secara otomatis di Buku Induk Siswa. Silakan hubungi bagian Administrasi jika ada pertanyaan.
+_Pesan ini dikirim otomatis oleh Sistem Keuangan {lembaga}._`,
+  waTemplateTagihanSiswa: `*PENGINGAT TUNGGAKAN SISWA* 📢
+{lembaga}
+
+Yth. *{nama_siswa}*,
+Kami menginfokan ringkasan administrasi keuangan pendidikan Anda:
+
+- *Total Biaya Pendidikan:* {total_biaya}
+- *Sudah Dibayarkan:* {terbayar}
+- *Sisa Tunggakan Siswa:* *{sisa_piutang}*
+
+Mohon untuk segera melakukan pembayaran angsuran melalui transfer atau tunai ke bagian kasir LPK sebelum batas waktu program berakhir.
+_Pesan ini dikirim otomatis oleh Sistem Keuangan {lembaga}._`,
+  waTemplateGaji: `*SLIP GAJI BULANAN RESMI (WHATSAPP)* 💼
+{lembaga}
+
+Yth. *{nama_staf}* ({peran}),
+Gaji Anda untuk periode *{bulan}* telah berhasil dibayarkan pada tanggal {tanggal}.
+
+*Rincian Slip Gaji:*
+- *Gaji Pokok:* {gaji_pokok}
+- *Tunjangan Tetap:* {tunjangan}
+- *Lembur & Bonus:* {lembur_bonus}
+- *Potongan Kas:* -{potongan}
+- *Take Home Pay:* *{take_home_pay}*
+
+_Gaji telah ditransfer ke rekening terdaftar Anda. Terima kasih atas dedikasi dan profesionalisme Anda dalam memajukan {lembaga}!_`,
+  waTemplateDanaMasuk: `*NOTIFIKASI UANG MASUK (TRANSFER)* 💰
+{lembaga}
+
+Telah diterima dana transfer masuk ke rekening lembaga:
+
+- *Tanggal Penerimaan:* {tanggal}
+- *Nominal:* *{nominal}*
+- *Kategori:* {kategori}
+- *Keterangan:* {keterangan}
+- *Penerima Kas:* {penerima}
+
+Dana telah diverifikasi aman dan dibukukan ke dalam Kas Operasional {lembaga}.`
 };
 
 export const initialSiswa: Siswa[] = [

@@ -6,7 +6,8 @@ import {
   createSpreadsheet, 
   updateSheetValues, 
   ensureSheetTabExists, 
-  fetchUserSpreadsheets 
+  fetchUserSpreadsheets,
+  getSheetValues
 } from "../lib/googleAuth";
 import { User } from "firebase/auth";
 import { 
@@ -17,7 +18,10 @@ import {
   PendapatanLain, 
   PengeluaranKas,
   TagihanSiswa,
-  Gender
+  Gender,
+  SchoolSettings,
+  AbsensiStatus,
+  StaffRole
 } from "../types";
 import { 
   FileSpreadsheet, 
@@ -29,7 +33,8 @@ import {
   Database,
   ArrowRight,
   PlusCircle,
-  HelpCircle
+  HelpCircle,
+  CloudDownload
 } from "lucide-react";
 
 interface GoogleSheetsSyncProps {
@@ -40,6 +45,16 @@ interface GoogleSheetsSyncProps {
   pendapatanLain: PendapatanLain[];
   pengeluaranKas: PengeluaranKas[];
   tagihan: TagihanSiswa[];
+  schoolSettings?: SchoolSettings;
+  onRestoreAllData?: (data: {
+    siswa?: Siswa[];
+    staff?: Staff[];
+    absensi?: Absensi[];
+    keuangan?: KeuanganSiswa[];
+    pendapatanLain?: PendapatanLain[];
+    pengeluaranKas?: PengeluaranKas[];
+    schoolSettings?: SchoolSettings;
+  }) => void;
 }
 
 export default function GoogleSheetsSync({
@@ -49,7 +64,9 @@ export default function GoogleSheetsSync({
   keuangan,
   pendapatanLain,
   pengeluaranKas,
-  tagihan
+  tagihan,
+  schoolSettings,
+  onRestoreAllData
 }: GoogleSheetsSyncProps) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
@@ -58,7 +75,11 @@ export default function GoogleSheetsSync({
 
   // Spreadsheets state
   const [spreadsheets, setSpreadsheets] = useState<any[]>([]);
-  const [selectedSpreadsheetId, setSelectedSpreadsheetId] = useState<string>("NEW");
+  const [selectedSpreadsheetId, setSelectedSpreadsheetId] = useState<string>(
+    schoolSettings?.googleSpreadsheetId && schoolSettings.googleSpreadsheetId.trim() !== ""
+      ? schoolSettings.googleSpreadsheetId
+      : "NEW"
+  );
   const [newSpreadsheetTitle, setNewSpreadsheetTitle] = useState(
     `LPK Nandita - Sinkronisasi ${new Date().toLocaleDateString("id-ID")}`
   );
@@ -69,6 +90,11 @@ export default function GoogleSheetsSync({
   const [syncSuccess, setSyncSuccess] = useState<boolean>(false);
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
 
+  // Pulling state
+  const [isPulling, setIsPulling] = useState<boolean>(false);
+  const [pullError, setPullError] = useState<string>("");
+  const [pullSuccess, setPullSuccess] = useState<boolean>(false);
+
   // Table options to sync
   const [tablesToSync, setTablesToSync] = useState({
     siswa: true,
@@ -78,6 +104,12 @@ export default function GoogleSheetsSync({
     keuangan: true,
     kasOperasional: true
   });
+
+  useEffect(() => {
+    if (schoolSettings?.googleSpreadsheetId && schoolSettings.googleSpreadsheetId.trim() !== "") {
+      setSelectedSpreadsheetId(schoolSettings.googleSpreadsheetId);
+    }
+  }, [schoolSettings?.googleSpreadsheetId]);
 
   useEffect(() => {
     const unsubscribe = initAuth(
@@ -179,7 +211,7 @@ export default function GoogleSheetsSync({
       if (tablesToSync.siswa) {
         setSyncStatus("Menulis Data Siswa...");
         await ensureSheetTabExists(token, spreadsheetId, "Data Siswa");
-        const header = ["NIS", "NIK", "Nama Siswa", "Gender", "Program Studi", "Angkatan", "Agama", "Tanggal Daftar", "Status", "Alamat", "No HP"];
+        const header = ["NIS", "NIK", "Nama Siswa", "Gender", "Program Studi", "Angkatan", "Agama", "Tanggal Daftar", "Status", "Alamat", "No HP", "Tempat Lahir", "Tanggal Lahir"];
         const rows = siswa.map(s => [
           s.nis,
           s.nik || "-",
@@ -191,7 +223,9 @@ export default function GoogleSheetsSync({
           s.tanggalDaftar,
           s.status,
           s.alamat,
-          s.noHp
+          s.noHp,
+          s.tempatLahir || "-",
+          s.tanggalLahir || "-"
         ]);
         await updateSheetValues(token, spreadsheetId, "'Data Siswa'!A1", [header, ...rows]);
       }
@@ -200,14 +234,16 @@ export default function GoogleSheetsSync({
       if (tablesToSync.staff) {
         setSyncStatus("Menulis Data Staf & Instruktur...");
         await ensureSheetTabExists(token, spreadsheetId, "Staf & Instruktur");
-        const header = ["Nama Lengkap", "NIP", "Peran", "No HP", "Alamat", "Status"];
+        const header = ["Nama Lengkap", "NIP", "Peran", "No HP", "Alamat", "Status", "Spesialisasi", "Gaji Pokok"];
         const rows = staff.map(st => [
           st.nama,
           st.nip || "-",
           st.role,
           st.noHp,
           st.alamat,
-          st.status
+          st.status,
+          st.spesialisasi || "General",
+          st.gajiPokok || 0
         ]);
         await updateSheetValues(token, spreadsheetId, "'Staf & Instruktur'!A1", [header, ...rows]);
       }
@@ -265,15 +301,44 @@ export default function GoogleSheetsSync({
       if (tablesToSync.kasOperasional) {
         setSyncStatus("Menulis Data Kas Operasional...");
         await ensureSheetTabExists(token, spreadsheetId, "Kas Operasional & Ledger");
-        const header = ["Kategori", "Keterangan", "Jumlah (IDR)", "Tanggal"];
+        const header = ["Kategori Utama", "Keterangan", "Jumlah (IDR)", "Tanggal", "Kategori Detil", "Penerima atau PenanggungJawab"];
         const rows: any[][] = [];
         pendapatanLain.forEach(p => {
-          rows.push(["Pendapatan Lain", p.keterangan, p.jumlah, p.tanggal]);
+          rows.push(["Pendapatan Lain", p.keterangan, p.jumlah, p.tanggal, p.kategori || "Lain-lain", p.penerima || "Lembaga"]);
         });
         pengeluaranKas.forEach(pk => {
-          rows.push(["Pengeluaran Kas", pk.keterangan, pk.jumlah, pk.tanggal]);
+          rows.push(["Pengeluaran Kas", pk.keterangan, pk.jumlah, pk.tanggal, pk.kategori || "Lain-lain", pk.penanggungJawab || "Lembaga"]);
         });
         await updateSheetValues(token, spreadsheetId, "'Kas Operasional & Ledger'!A1", [header, ...rows]);
+      }
+
+      // 8. Sync School Settings
+      if (schoolSettings) {
+        setSyncStatus("Menulis Pengaturan Lembaga...");
+        await ensureSheetTabExists(token, spreadsheetId, "Pengaturan Aplikasi");
+        const header = ["Kunci Pengaturan", "Nilai"];
+        const rows = [
+          ["Nama Lembaga", schoolSettings.namaLembaga || ""],
+          ["Slogan / Tagline", schoolSettings.tagline || ""],
+          ["Alamat", schoolSettings.alamat || ""],
+          ["Nomor Telepon", schoolSettings.noTelepon || ""],
+          ["Email Resmi", schoolSettings.email || ""],
+          ["Website Resmi", schoolSettings.website || ""],
+          ["Direktur Nama", schoolSettings.direkturNama || ""],
+          ["Direktur NIP", schoolSettings.direkturNip || ""],
+          ["Logo URL", schoolSettings.logoUrl || ""],
+          ["Akreditasi", schoolSettings.akreditasi || ""],
+          ["Bank Nama", schoolSettings.bankNama || ""],
+          ["Bank Rekening", schoolSettings.bankRekening || ""],
+          ["Bank Atas Nama", schoolSettings.bankAtasNama || ""],
+          ["Google Spreadsheet ID", spreadsheetId || ""],
+          ["Auto Sync Enabled", schoolSettings.autoSyncEnabled ? "true" : "false"],
+          ["WA Template Pembayaran", schoolSettings.waTemplatePembayaran || ""],
+          ["WA Template Tagihan", schoolSettings.waTemplateTagihanSiswa || ""],
+          ["WA Template Gaji", schoolSettings.waTemplateGaji || ""],
+          ["WA Template Dana Masuk", schoolSettings.waTemplateDanaMasuk || ""]
+        ];
+        await updateSheetValues(token, spreadsheetId, "'Pengaturan Aplikasi'!A1", [header, ...rows]);
       }
 
       setSyncStatus(`Berhasil menyinkronkan data!`);
@@ -290,6 +355,227 @@ export default function GoogleSheetsSync({
       setSyncError(err.message || "Gagal menyinkronkan data. Pastikan akun Google Anda memiliki akses.");
     } finally {
       setIsSyncing(false);
+    }
+  };
+
+  const handlePull = async () => {
+    if (!token) return;
+    if (selectedSpreadsheetId === "NEW") {
+      alert("Silakan pilih Spreadsheet yang ada di Google Drive terlebih dahulu untuk ditarik datanya.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      "Apakah Anda yakin ingin MENARIK (mengunduh) data dari Google Sheets?\nTindakan ini akan menimpa seluruh data pengaturan, siswa, absensi, dan keuangan di browser ini dengan data terbaru dari Google Sheets Anda."
+    );
+    if (!confirmed) return;
+
+    setIsPulling(true);
+    setPullError("");
+    setPullSuccess(false);
+    setSyncStatus("Mulai menarik data dari Google Sheets...");
+
+    try {
+      const spreadsheetId = selectedSpreadsheetId;
+      const importedData: {
+        siswa?: Siswa[];
+        staff?: Staff[];
+        absensi?: Absensi[];
+        keuangan?: KeuanganSiswa[];
+        pendapatanLain?: PendapatanLain[];
+        pengeluaranKas?: PengeluaranKas[];
+        schoolSettings?: SchoolSettings;
+      } = {};
+
+      // 1. Pull Settings
+      setSyncStatus("Membaca Pengaturan Aplikasi...");
+      const settingsValues = await getSheetValues(token, spreadsheetId, "'Pengaturan Aplikasi'!A1:B30");
+      if (settingsValues && settingsValues.length > 1) {
+        const settingsMap: Record<string, string> = {};
+        settingsValues.slice(1).forEach(row => {
+          if (row[0]) {
+            settingsMap[row[0]] = row[1] || "";
+          }
+        });
+
+        importedData.schoolSettings = {
+          namaLembaga: settingsMap["Nama Lembaga"] || schoolSettings?.namaLembaga || "",
+          tagline: settingsMap["Slogan / Tagline"] || schoolSettings?.tagline || "",
+          alamat: settingsMap["Alamat"] || schoolSettings?.alamat || "",
+          noTelepon: settingsMap["Nomor Telepon"] || schoolSettings?.noTelepon || "",
+          email: settingsMap["Email Resmi"] || schoolSettings?.email || "",
+          website: settingsMap["Website Resmi"] || schoolSettings?.website || "",
+          direkturNama: settingsMap["Direktur Nama"] || schoolSettings?.direkturNama || "",
+          direkturNip: settingsMap["Direktur NIP"] || schoolSettings?.direkturNip || "",
+          logoUrl: settingsMap["Logo URL"] || schoolSettings?.logoUrl || "",
+          akreditasi: settingsMap["Akreditasi"] || schoolSettings?.akreditasi || "",
+          bankNama: settingsMap["Bank Nama"] || schoolSettings?.bankNama || "",
+          bankRekening: settingsMap["Bank Rekening"] || schoolSettings?.bankRekening || "",
+          bankAtasNama: settingsMap["Bank Atas Nama"] || schoolSettings?.bankAtasNama || "",
+          warnaUtama: schoolSettings?.warnaUtama || "#002d5c",
+          googleSpreadsheetId: spreadsheetId,
+          autoSyncEnabled: settingsMap["Auto Sync Enabled"] === "true",
+          waTemplatePembayaran: settingsMap["WA Template Pembayaran"] || schoolSettings?.waTemplatePembayaran || "",
+          waTemplateTagihanSiswa: settingsMap["WA Template Tagihan"] || schoolSettings?.waTemplateTagihanSiswa || "",
+          waTemplateGaji: settingsMap["WA Template Gaji"] || schoolSettings?.waTemplateGaji || "",
+          waTemplateDanaMasuk: settingsMap["WA Template Dana Masuk"] || schoolSettings?.waTemplateDanaMasuk || ""
+        };
+      }
+
+      // 2. Pull Siswa
+      setSyncStatus("Membaca Data Siswa...");
+      const siswaValues = await getSheetValues(token, spreadsheetId, "'Data Siswa'!A1:M1000");
+      let parsedSiswaList: Siswa[] = [];
+      if (siswaValues && siswaValues.length > 1) {
+        parsedSiswaList = siswaValues.slice(1).map((row, index) => {
+          const generatedId = `SIS-${1000 + index}`;
+          return {
+            id: generatedId,
+            nis: row[0] || generatedId,
+            nik: row[1] === "-" ? "" : row[1] || "",
+            nama: row[2] || "Siswa Tanpa Nama",
+            gender: row[3] === "Perempuan" ? Gender.Perempuan : Gender.LakiLaki,
+            programStudi: row[4] || "",
+            angkatan: row[5] || "",
+            agama: row[6] === "-" ? "Islam" : row[6] || "Islam",
+            tanggalDaftar: row[7] || "",
+            status: (row[8] || "Aktif") as any,
+            alamat: row[9] || "",
+            noHp: row[10] || "",
+            tempatLahir: row[11] || "-",
+            tanggalLahir: row[12] || new Date().toISOString().split("T")[0]
+          };
+        });
+        importedData.siswa = parsedSiswaList;
+      }
+
+      // 3. Pull Staff
+      setSyncStatus("Membaca Data Staf & Instruktur...");
+      const staffValues = await getSheetValues(token, spreadsheetId, "'Staf & Instruktur'!A1:H500");
+      let parsedStaffList: Staff[] = [];
+      if (staffValues && staffValues.length > 1) {
+        parsedStaffList = staffValues.slice(1).map((row, index) => {
+          const generatedId = `STF-${100 + index}`;
+          return {
+            id: generatedId,
+            nama: row[0] || "Staf Tanpa Nama",
+            nip: row[1] === "-" ? "" : row[1] || "",
+            role: (row[2] || "Instruktur") as any,
+            noHp: row[3] || "",
+            alamat: row[4] || "",
+            status: (row[5] || "Aktif") as any,
+            spesialisasi: row[6] || "General",
+            gajiPokok: Number(row[7]) || 2000000
+          };
+        });
+        importedData.staff = parsedStaffList;
+      }
+
+      // 4. Pull Absensi
+      setSyncStatus("Membaca Data Absensi...");
+      const absList: Absensi[] = [];
+      const absSiswaValues = await getSheetValues(token, spreadsheetId, "'Absensi Siswa'!A1:E1500");
+      if (absSiswaValues && absSiswaValues.length > 1) {
+        absSiswaValues.slice(1).forEach((row) => {
+          if (row[0]) {
+            absList.push({
+              id: `ABS-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+              tanggal: row[0],
+              targetId: row[1] || "",
+              nama: row[2] || "",
+              kategori: "Siswa",
+              status: (row[3] || "Hadir") as any,
+              keterangan: row[4] === "-" ? "" : row[4] || ""
+            });
+          }
+        });
+      }
+
+      const absStaffValues = await getSheetValues(token, spreadsheetId, "'Absensi Staf & Instruktur'!A1:E1500");
+      if (absStaffValues && absStaffValues.length > 1) {
+        absStaffValues.slice(1).forEach((row, index) => {
+          if (row[0]) {
+            absList.push({
+              id: `ABS-${Math.random().toString(36).substring(2, 6).toUpperCase()}`,
+              tanggal: row[0],
+              targetId: `STF-${100 + index}`,
+              nama: row[1] || "",
+              kategori: (row[2] || "Staf") as any,
+              status: (row[3] || "Hadir") as any,
+              keterangan: row[4] === "-" ? "" : row[4] || ""
+            });
+          }
+        });
+      }
+      if (absList.length > 0) {
+        importedData.absensi = absList;
+      }
+
+      // 5. Pull Keuangan
+      setSyncStatus("Membaca Data Keuangan...");
+      const keuanganValues = await getSheetValues(token, spreadsheetId, "'Keuangan & Piutang'!A1:E1000");
+      if (keuanganValues && keuanganValues.length > 1) {
+        importedData.keuangan = keuanganValues.slice(1).map((row, index) => {
+          const matchingSiswa = parsedSiswaList.find(s => s.nama === row[0]);
+          return {
+            id: `KEU-${100 + index}`,
+            siswaId: matchingSiswa ? matchingSiswa.id : `SIS-${index}`,
+            siswaNama: row[0] || "Siswa",
+            totalBiaya: Number(row[1]) || 0,
+            totalBayar: Number(row[2]) || 0,
+            piutang: Number(row[3]) || 0,
+            statusBayar: (row[4] || "Belum Bayar") as any,
+            pembayaranTerakhir: "-"
+          };
+        });
+      }
+
+      // 6. Pull Kas Operasional
+      setSyncStatus("Membaca Kas Operasional...");
+      const kasValues = await getSheetValues(token, spreadsheetId, "'Kas Operasional & Ledger'!A1:F1000");
+      if (kasValues && kasValues.length > 1) {
+        const pLain: PendapatanLain[] = [];
+        const pKel: PengeluaranKas[] = [];
+        kasValues.slice(1).forEach((row, index) => {
+          if (row[1]) {
+            const type = row[0];
+            const item = {
+              id: `KAS-${100 + index}`,
+              keterangan: row[1] || "",
+              jumlah: Number(row[2]) || 0,
+              tanggal: row[3] || new Date().toISOString().split("T")[0],
+              kategori: row[4] || "Lain-lain"
+            };
+            if (type === "Pendapatan Lain") {
+              pLain.push({
+                ...item,
+                penerima: row[5] || "Lembaga"
+              });
+            } else {
+              pKel.push({
+                ...item,
+                penanggungJawab: row[5] || "Lembaga"
+              });
+            }
+          }
+        });
+        importedData.pendapatanLain = pLain;
+        importedData.pengeluaranKas = pKel;
+      }
+
+      // Restore data through callback
+      if (onRestoreAllData) {
+        onRestoreAllData(importedData);
+        setPullSuccess(true);
+        setSyncStatus("Sukses menarik data! Seluruh lembar kerja Excel telah disinkronkan ke browser komputer ini.");
+      } else {
+        throw new Error("Sistem restore data tidak tersedia di parent component");
+      }
+    } catch (err: any) {
+      console.error("Penarikan data gagal:", err);
+      setPullError(err.message || "Gagal menarik data. Pastikan nama tab sheet dan format file valid.");
+    } finally {
+      setIsPulling(false);
     }
   };
 
@@ -454,41 +740,59 @@ export default function GoogleSheetsSync({
                 ))}
               </div>
 
-              {/* Action Button */}
+              {/* Action Buttons */}
               <div className="mt-6 border-t border-gray-100 pt-6 flex flex-col items-center">
-                <button
-                  id="btn-sync-to-google"
-                  onClick={handleSync}
-                  disabled={isSyncing || !Object.values(tablesToSync).some(Boolean)}
-                  className="w-full md:w-auto px-10 py-4 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-sm rounded-xl shadow-md transition flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  {isSyncing ? (
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <CloudLightning className="w-5 h-5" />
+                <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+                  <button
+                    id="btn-sync-to-google"
+                    onClick={handleSync}
+                    disabled={isSyncing || isPulling || !Object.values(tablesToSync).some(Boolean)}
+                    className="flex-1 max-w-xs px-6 py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isSyncing ? (
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <CloudLightning className="w-4 h-4" />
+                    )}
+                    <span>{isSyncing ? "Mengunggah..." : "Sinkronisasikan Sekarang"}</span>
+                  </button>
+
+                  {selectedSpreadsheetId !== "NEW" && (
+                    <button
+                      id="btn-pull-from-google"
+                      onClick={handlePull}
+                      disabled={isSyncing || isPulling}
+                      className="flex-1 max-w-xs px-6 py-3.5 bg-[#002d5c] hover:bg-[#001f3f] text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 disabled:bg-gray-300 disabled:cursor-not-allowed cursor-pointer"
+                    >
+                      {isPulling ? (
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <CloudDownload className="w-4 h-4" />
+                      )}
+                      <span>{isPulling ? "Mengunduh..." : "Tarik / Pulihkan Data"}</span>
+                    </button>
                   )}
-                  <span>{isSyncing ? "Menjalankan Sinkronisasi..." : "Sinkronisasikan Sekarang"}</span>
-                </button>
+                </div>
 
                 {/* Display Success or Error */}
-                {syncStatus && (
+                {(syncStatus || pullError || pullSuccess) && (
                   <div className={`w-full mt-4 p-4 rounded-xl text-center text-xs border ${
-                    syncError 
+                    syncError || pullError
                       ? "bg-red-50 border-red-200 text-red-800" 
-                      : syncSuccess 
+                      : (syncSuccess || pullSuccess)
                         ? "bg-emerald-50 border-emerald-200 text-emerald-800" 
                         : "bg-slate-100 border-slate-200 text-slate-800"
                   }`}>
-                    {syncError ? (
+                    {syncError || pullError ? (
                       <div className="flex items-center justify-center gap-2">
                         <AlertCircle className="w-4 h-4 text-red-600" />
-                        <span className="font-semibold">{syncError}</span>
+                        <span className="font-semibold">{syncError || pullError}</span>
                       </div>
-                    ) : syncSuccess ? (
+                    ) : (syncSuccess || pullSuccess) ? (
                       <div className="space-y-2">
                         <p className="font-bold flex items-center justify-center gap-1.5 text-sm text-emerald-700">
                           <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600" />
-                          <span>Berhasil Disinkronkan!</span>
+                          <span>{pullSuccess ? "Berhasil Dipulihkan!" : "Berhasil Disinkronkan!"}</span>
                         </p>
                         <p className="whitespace-pre-line leading-relaxed font-mono text-[11px] bg-white p-2 border border-emerald-100 rounded-lg">
                           {syncStatus}
@@ -519,17 +823,17 @@ export default function GoogleSheetsSync({
 
                 <div className="flex items-start gap-2.5">
                   <div className="w-5 h-5 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">2</div>
-                  <p><strong>Pilih File:</strong> Anda dapat membuat Spreadsheet baru langsung dari sistem atau menimpa lembar kerja pada Spreadsheet yang sudah ada.</p>
+                  <p><strong>Pilih File:</strong> Anda dapat membuat Spreadsheet baru langsung dari sistem atau memilih lembar kerja pada Spreadsheet yang sudah ada.</p>
                 </div>
 
                 <div className="flex items-start gap-2.5">
                   <div className="w-5 h-5 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">3</div>
-                  <p><strong>Pemisahan Tab:</strong> Sistem akan otomatis membuat tab-tab yang rapi di dalam file Anda: <em>"Data Siswa"</em>, <em>"Staf & Instruktur"</em>, <em>"Absensi Siswa"</em>, <em>"Absensi Staf & Instruktur"</em>, <em>"Keuangan"</em>, dan <em>"Kas Operasional"</em>.</p>
+                  <p><strong>Pemisahan Tab:</strong> Sistem akan otomatis membuat tab-tab yang rapi di dalam file Anda: <em>"Data Siswa"</em>, <em>"Staf & Instruktur"</em>, <em>"Absensi Siswa"</em>, <em>"Absensi Staf & Instruktur"</em>, <em>"Keuangan"</em>, <em>"Kas Operasional"</em>, dan <em>"Pengaturan Aplikasi"</em>.</p>
                 </div>
 
                 <div className="flex items-start gap-2.5">
                   <div className="w-5 h-5 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">4</div>
-                  <p><strong>Dua Arah / Satu Arah:</strong> Sinkronisasi ini bersifat satu arah yaitu melakukan export data lokal dari sistem ke Google Spreadsheet Anda secara lengkap dan akurat.</p>
+                  <p><strong>Sinkronisasi Dua Arah:</strong> Gunakan tombol <strong className="text-emerald-700">"Sinkronisasikan Sekarang"</strong> untuk mengunggah data lokal ke Google Drive. Gunakan tombol <strong className="text-[#002d5c]">"Tarik / Pulihkan Data"</strong> untuk mengunduh dan menyinkronkan seluruh data ke browser komputer ini secara instan!</p>
                 </div>
               </div>
             </div>
