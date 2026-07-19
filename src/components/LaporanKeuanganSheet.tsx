@@ -260,6 +260,17 @@ export default function LaporanKeuanganSheet({
           </td>
         </tr>
       `;
+    } else if (alignment === "LogoKiri_TeksTengah") {
+      headerContentHtml = `
+        <tr>
+          <td style="width: 90px; vertical-align: middle; padding-right: 15px;">
+            ${logoHtml}
+          </td>
+          <td style="vertical-align: middle; padding-right: 105px;">
+            ${textHtml}
+          </td>
+        </tr>
+      `;
     } else if (alignment === "Kanan") {
       headerContentHtml = `
         <tr>
@@ -297,6 +308,7 @@ export default function LaporanKeuanganSheet({
             .school-contact { font-size: 9px; color: #6b7280; margin-top: 1px; }
             .school-legal { font-size: 9px; color: ${primaryColor}; margin-top: 3px; font-family: monospace; font-weight: bold; }
             .header-align-Tengah { text-align: center; }
+            .header-align-LogoKiri_TeksTengah { text-align: center; }
             .header-align-Kanan { text-align: right; }
             .header-align-Kiri { text-align: left; }
             .signature-section { margin-top: 60px; float: right; width: 250px; text-align: center; font-size: 13px; }

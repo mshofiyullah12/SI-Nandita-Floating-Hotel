@@ -181,7 +181,7 @@ export interface SchoolSettings {
   warnaUtama: string; // Primary hex color code
   akreditasi?: string; // LPK Accreditation info
   nomorIzin?: string; // LPK School License number
-  kopSuratPosisi?: "Kiri" | "Tengah" | "Kanan"; // Alignment of the letterhead (Kiri = left, Tengah = center, Kanan = right)
+  kopSuratPosisi?: "Kiri" | "Tengah" | "Kanan" | "LogoKiri_TeksTengah"; // Alignment of the letterhead (Kiri = left, Tengah = center, Kanan = right, LogoKiri_TeksTengah = logo on left but text is centered)
   // Bank transfer details
   bankNama?: string;
   bankRekening?: string;

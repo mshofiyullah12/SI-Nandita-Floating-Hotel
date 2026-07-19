@@ -548,7 +548,7 @@ export default function AbsensiSheet({
                 <NanditaLogo logoUrl={schoolSettings?.logoUrl} variant="icon" height={76} />
               </div>
               <div className={`flex-grow ${
-                schoolSettings?.kopSuratPosisi === "Tengah"
+                schoolSettings?.kopSuratPosisi === "Tengah" || schoolSettings?.kopSuratPosisi === "LogoKiri_TeksTengah"
                   ? "text-center flex flex-col items-center"
                   : schoolSettings?.kopSuratPosisi === "Kanan"
                   ? "text-right flex flex-col items-end"
@@ -564,7 +564,7 @@ export default function AbsensiSheet({
                   {schoolSettings?.alamat || "Jl. Raya Floating Hotel No. 88, Kawasan Pendidikan Maritim"}
                 </p>
                 <div className={`text-[9px] text-gray-500 mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 ${
-                  schoolSettings?.kopSuratPosisi === "Tengah"
+                  schoolSettings?.kopSuratPosisi === "Tengah" || schoolSettings?.kopSuratPosisi === "LogoKiri_TeksTengah"
                     ? "justify-center"
                     : schoolSettings?.kopSuratPosisi === "Kanan"
                     ? "justify-end"
@@ -575,7 +575,7 @@ export default function AbsensiSheet({
                   <span><strong>Website:</strong> {schoolSettings?.website || "-"}</span>
                 </div>
                 <div className={`text-[9px] text-teal-800 font-bold mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 ${
-                  schoolSettings?.kopSuratPosisi === "Tengah"
+                  schoolSettings?.kopSuratPosisi === "Tengah" || schoolSettings?.kopSuratPosisi === "LogoKiri_TeksTengah"
                     ? "justify-center"
                     : schoolSettings?.kopSuratPosisi === "Kanan"
                     ? "justify-end"
