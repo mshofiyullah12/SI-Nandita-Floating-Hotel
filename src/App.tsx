@@ -97,7 +97,19 @@ import { motion } from "motion/react";
 
 export default function App() {
   // 1. Core State Hooks
-  const [activeSheet, setActiveSheet] = useState<string>("Dashboard & Ringkasan");
+  const [activeSheet, setActiveSheet] = useState<string>(() => {
+    const storedUser = localStorage.getItem("lpk_current_user");
+    const storedSheet = localStorage.getItem("lpk_active_sheet");
+    if (storedUser) {
+      try {
+        const parsed = JSON.parse(storedUser);
+        if (parsed.role === "Siswa") {
+          return storedSheet || "Tagihan Saya";
+        }
+      } catch (e) {}
+    }
+    return storedSheet || "Dashboard & Ringkasan";
+  });
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings>(initialSchoolSettings);
   const [siswa, setSiswa] = useState<Siswa[]>(initialSiswa);
   const [staff, setStaff] = useState<Staff[]>(initialStaff);
@@ -109,8 +121,20 @@ export default function App() {
   const [jobs, setJobs] = useState<JobRegister[]>(initialJobRegister);
 
   // New states for requested additions
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    return localStorage.getItem("lpk_current_user") !== null;
+  });
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
+    const stored = localStorage.getItem("lpk_current_user");
+    if (stored) {
+      try {
+        return JSON.parse(stored);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  });
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>(initialUsers);
   const [tagihan, setTagihan] = useState<TagihanSiswa[]>(initialTagihan);
   const [pendapatanLain, setPendapatanLain] = useState<PendapatanLain[]>(initialPendapatanLain);
@@ -173,6 +197,19 @@ export default function App() {
     if (storedJenisPendapatan) setJenisPendapatan(JSON.parse(storedJenisPendapatan));
     if (storedKatPengeluaran) setKatPengeluaran(JSON.parse(storedKatPengeluaran));
   }, []);
+
+  // Sync auth state and active sheet in real-time to localStorage
+  useEffect(() => {
+    if (isLoggedIn && currentUser) {
+      localStorage.setItem("lpk_current_user", JSON.stringify(currentUser));
+      if (activeSheet) {
+        localStorage.setItem("lpk_active_sheet", activeSheet);
+      }
+    } else {
+      localStorage.removeItem("lpk_current_user");
+      localStorage.removeItem("lpk_active_sheet");
+    }
+  }, [isLoggedIn, currentUser, activeSheet]);
 
   // Helper to persist everything
   const saveAllToLocalStorage = (
