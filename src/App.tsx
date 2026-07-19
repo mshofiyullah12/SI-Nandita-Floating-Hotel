@@ -281,6 +281,111 @@ export default function App() {
     );
   };
 
+  const handleImportFullBackup = (backup: any) => {
+    if (!backup || typeof backup !== "object") {
+      throw new Error("Format file tidak valid.");
+    }
+    
+    // Set states if present
+    if (backup.schoolSettings) {
+      setSchoolSettings(backup.schoolSettings);
+    }
+    if (backup.siswa) {
+      setSiswa(backup.siswa);
+    }
+    if (backup.staff) {
+      setStaff(backup.staff);
+    }
+    if (backup.absensi) {
+      setAbsensi(backup.absensi);
+    }
+    if (backup.sertifikat) {
+      setSertifikat(backup.sertifikat);
+    }
+    if (backup.keuangan) {
+      setKeuangan(backup.keuangan);
+    }
+    if (backup.pembayaranLog) {
+      setPembayaranLog(backup.pembayaranLog);
+    }
+    if (backup.payroll) {
+      setPayroll(backup.payroll);
+    }
+    if (backup.jobs) {
+      setJobs(backup.jobs);
+    }
+    if (backup.userAccounts) {
+      setUserAccounts(backup.userAccounts);
+    }
+    if (backup.tagihan) {
+      setTagihan(backup.tagihan);
+    }
+    if (backup.pendapatanLain) {
+      setPendapatanLain(backup.pendapatanLain);
+    }
+    if (backup.pengeluaranKas) {
+      setPengeluaranKas(backup.pengeluaranKas);
+    }
+    if (backup.utangPegawai) {
+      setUtangPegawai(backup.utangPegawai);
+    }
+    if (backup.jenisPendapatan) {
+      setJenisPendapatan(backup.jenisPendapatan);
+    }
+    if (backup.katPengeluaran) {
+      setKatPengeluaran(backup.katPengeluaran);
+    }
+    if (backup.customTabs) {
+      setCustomTabs(backup.customTabs);
+    }
+
+    // Save all to localStorage
+    saveAllToLocalStorage(
+      backup.schoolSettings || schoolSettings,
+      backup.siswa || siswa,
+      backup.staff || staff,
+      backup.absensi || absensi,
+      backup.sertifikat || sertifikat,
+      backup.keuangan || keuangan,
+      backup.pembayaranLog || pembayaranLog,
+      backup.payroll || payroll,
+      backup.jobs || jobs,
+      backup.customTabs || customTabs,
+      backup.userAccounts || userAccounts,
+      backup.tagihan || tagihan,
+      backup.pendapatanLain || pendapatanLain,
+      backup.pengeluaranKas || pengeluaranKas,
+      backup.utangPegawai || utangPegawai,
+      backup.jenisPendapatan || jenisPendapatan,
+      backup.katPengeluaran || katPengeluaran
+    );
+  };
+
+  const handleExportFullBackup = () => {
+    const backupObj = {
+      schoolSettings,
+      siswa,
+      staff,
+      absensi,
+      sertifikat,
+      keuangan,
+      pembayaranLog,
+      payroll,
+      jobs,
+      userAccounts,
+      tagihan,
+      pendapatanLain,
+      pengeluaranKas,
+      utangPegawai,
+      jenisPendapatan,
+      katPengeluaran,
+      customTabs,
+      exportedAt: new Date().toISOString(),
+      appName: "LPK Nandita Floating Hotel System"
+    };
+    return JSON.stringify(backupObj, null, 2);
+  };
+
   // 3. Mutation Operations
 
   // SISWA
@@ -1008,6 +1113,8 @@ export default function App() {
             settings={schoolSettings}
             onUpdateSettings={handleUpdateSettings}
             onResetToDefault={handleResetToDefault}
+            onImportFullBackup={handleImportFullBackup}
+            onExportFullBackup={handleExportFullBackup}
           />
         );
       case "Integrasi Google Sheets":

@@ -5,24 +5,85 @@
 
 import React, { useState, useRef } from "react";
 import { SchoolSettings } from "../types";
-import { Save, RefreshCw, HelpCircle, Check, Palette, Upload, Trash2, Image, CreditCard, FileSpreadsheet, MessageSquare } from "lucide-react";
+import { Save, RefreshCw, HelpCircle, Check, Palette, Upload, Trash2, Image, CreditCard, FileSpreadsheet, MessageSquare, Download } from "lucide-react";
 import NanditaLogo from "./NanditaLogo";
 
 interface SettingsSheetProps {
   settings: SchoolSettings;
   onUpdateSettings: (newSettings: SchoolSettings) => void;
   onResetToDefault: () => void;
+  onImportFullBackup: (backup: any) => void;
+  onExportFullBackup: () => string;
 }
 
 export default function SettingsSheet({
   settings,
   onUpdateSettings,
-  onResetToDefault
+  onResetToDefault,
+  onImportFullBackup,
+  onExportFullBackup
 }: SettingsSheetProps) {
   const [formData, setFormData] = useState<SchoolSettings>(settings);
   const [isSaved, setIsSaved] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [backupSuccess, setBackupSuccess] = useState<string | null>(null);
+  const [backupError, setBackupError] = useState<string | null>(null);
+
+  const handleExportData = () => {
+    try {
+      const jsonString = onExportFullBackup();
+      const blob = new Blob([jsonString], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const dateStr = new Date().toISOString().split("T")[0];
+      const timeStr = new Date().toTimeString().split(" ")[0].replace(/:/g, "-");
+      link.download = `LPK_Nandita_Semua_Data_Backup_${dateStr}_${timeStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setBackupSuccess("Ekspor data berhasil! File JSON siap disimpan.");
+      setTimeout(() => setBackupSuccess(null), 3000);
+    } catch (err: any) {
+      setBackupError("Gagal mengekspor data: " + err.message);
+      setTimeout(() => setBackupError(null), 4000);
+    }
+  };
+
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        
+        // Simple validation check
+        if (!parsed.siswa && !parsed.staff && !parsed.schoolSettings) {
+          throw new Error("File JSON tidak mengandung data backup LPK Nandita yang valid.");
+        }
+
+        if (confirm("Apakah Anda yakin ingin memulihkan semua data dari file backup ini? Data saat ini di browser Anda akan sepenuhnya digantikan.")) {
+          onImportFullBackup(parsed);
+          setBackupSuccess("Restorasi data backup LPK berhasil! Memuat ulang konfigurasi...");
+          setTimeout(() => {
+            setBackupSuccess(null);
+            window.location.reload(); // Reload to refresh all components cleanly
+          }, 1500);
+        }
+      } catch (err: any) {
+        setBackupError("Gagal mengimpor file backup: " + err.message);
+        setTimeout(() => setBackupError(null), 5000);
+      }
+    };
+    reader.readAsText(file);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -536,6 +597,85 @@ export default function SettingsSheet({
                 />
                 <div className="text-[10px] text-gray-500">
                   <strong>Variabel tersedia:</strong> <code className="bg-slate-50 px-1 rounded">{`{lembaga}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{tanggal}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{nominal}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{kategori}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{keterangan}`}</code>, <code className="bg-slate-50 px-1 rounded">{`{penerima}`}</code>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section 8: Ekspor & Impor Semua Data (Backup & Restore) */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm space-y-4">
+            <h3 className="text-xs font-bold text-teal-800 uppercase tracking-wider border-b border-gray-100 pb-2 flex items-center">
+              <FileSpreadsheet className="w-4 h-4 mr-1 text-teal-700" />
+              8. Ekspor & Impor Semua Data (Backup & Restore)
+            </h3>
+
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Fasilitas cadangan data lengkap untuk mencegah kehilangan data lokal. Anda dapat mengunduh seluruh database (pengaturan lembaga, biodata siswa aktif, absensi harian, buku sertifikat, rincian pembayaran, tunggakan, kas utama operasional, utang piutang, dan log slip payroll) ke dalam satu file tunggal <code className="bg-slate-100 px-1 py-0.5 rounded font-bold text-teal-800">.json</code>, kemudian mengimpornya kembali kapan pun dibutuhkan.
+            </p>
+
+            {backupSuccess && (
+              <div className="bg-green-100 border border-green-300 text-green-800 text-xs px-4 py-2.5 rounded-lg flex items-center space-x-2 animate-pulse">
+                <Check className="w-4 h-4 text-green-700" />
+                <span>{backupSuccess}</span>
+              </div>
+            )}
+
+            {backupError && (
+              <div className="bg-red-100 border border-red-300 text-red-800 text-xs px-4 py-2.5 rounded-lg flex items-center space-x-2">
+                <span className="font-bold">⚠️ Error:</span>
+                <span>{backupError}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {/* Export Panel */}
+              <div className="border border-slate-200/80 hover:border-slate-300 bg-slate-50/50 rounded-xl p-4 flex flex-col justify-between space-y-3 transition-colors">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center">
+                    <Download className="w-3.5 h-3.5 text-teal-700 mr-1.5" />
+                    Cadangkan Semua Data (Ekspor)
+                  </h4>
+                  <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                    Unduh seluruh data LPK Nandita dan berkas konfigurasi ke file cadangan JSON lokal komputer Anda.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleExportData}
+                  className="w-full flex items-center justify-center space-x-1.5 bg-teal-800 hover:bg-teal-900 text-white font-bold text-xs py-2 px-3 rounded-lg shadow-sm transition"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Unduh File Cadangan (.json)</span>
+                </button>
+              </div>
+
+              {/* Import Panel */}
+              <div className="border border-slate-200/80 hover:border-slate-300 bg-slate-50/50 rounded-xl p-4 flex flex-col justify-between space-y-3 transition-colors">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800 flex items-center">
+                    <Upload className="w-3.5 h-3.5 text-amber-600 mr-1.5" />
+                    Pulihkan Semua Data (Impor)
+                  </h4>
+                  <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                    Unggah file cadangan JSON sebelumnya untuk memulihkan seluruh keadaan lembar kerja & pengaturan.
+                  </p>
+                </div>
+                <div>
+                  <input
+                    type="file"
+                    ref={importFileInputRef}
+                    onChange={handleImportData}
+                    accept=".json"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => importFileInputRef.current?.click()}
+                    className="w-full flex items-center justify-center space-x-1.5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs py-2 px-3 rounded-lg shadow-sm transition"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Unggah & Terapkan Cadangan</span>
+                  </button>
                 </div>
               </div>
             </div>
