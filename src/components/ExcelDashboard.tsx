@@ -134,59 +134,33 @@ export default function ExcelDashboard({
     pct: Math.round((count / (totalSiswa || 1)) * 100)
   }));
 
-  // Render an Excel column header bar (A, B, C...)
-  const columns = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"];
-
   return (
-    <div className="flex flex-col h-full bg-white text-gray-800 font-sans" id="excel-dashboard-container">
-      {/* Excel Sheet Metadata Ribbon */}
-      <div className="bg-gray-100 border-b border-gray-200 px-4 py-2 flex items-center justify-between text-xs font-mono text-gray-500">
+    <div className="flex flex-col h-full bg-slate-50 text-gray-800 font-sans" id="excel-dashboard-container">
+      {/* Top Banner Ribbon */}
+      <div className="bg-white border-b border-slate-200/80 px-6 py-3 flex items-center justify-between text-xs text-slate-500 shadow-xs">
         <div className="flex items-center space-x-2">
-          <span className="bg-green-700 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">READY</span>
-          <span className="text-gray-400">|</span>
-          <span>CELLS SELECTED: A1:M40</span>
-          <span className="text-gray-400">|</span>
-          <span>CALCULATIONS: AUTO</span>
+          <span className="bg-emerald-600 text-white px-2 py-0.5 rounded-full text-[10px] font-bold">AKTIF</span>
+          <span className="text-slate-300">|</span>
+          <span className="font-medium text-slate-600">Sistem Informasi Terpadu LPK Nandita</span>
         </div>
         <div className="flex items-center space-x-3">
-          <span className="flex items-center text-green-700">
-            <span className="w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>
+          <span className="flex items-center text-emerald-600 font-semibold">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse"></span>
             Terhubung Lokal
           </span>
         </div>
       </div>
 
-      {/* Grid view container */}
-      <div className="overflow-auto flex-1">
-        {/* Excel Letter Headers */}
-        <div className="flex min-w-[1000px] bg-gray-100 border-b border-gray-300">
-          <div className="w-10 flex-shrink-0 bg-gray-200 border-r border-gray-300 flex items-center justify-center text-[10px] font-mono text-gray-500 h-6">
-            #
-          </div>
-          {columns.map((col, i) => (
-            <div 
-              key={col} 
-              className="flex-1 min-w-[120px] text-center border-r border-gray-300 py-1 text-[11px] font-mono font-medium text-gray-600 hover:bg-gray-200 cursor-col-resize"
-            >
-              {col}
-            </div>
-          ))}
-        </div>
-
-        {/* Excel-style Dashboard Sheet Content */}
-        <div className="min-w-[1000px] bg-grid relative pb-10 px-4 pt-4">
+      {/* Dynamic Dashboard View */}
+      <div className="overflow-auto flex-1 bg-slate-50/50">
+        <div className="max-w-7xl mx-auto pb-10 px-6 pt-6 space-y-6">
           
           {/* Row 1-3: Embedded Hero Header */}
-          <div className="flex mb-4">
-            {/* Row Number Side Label */}
-            <div className="w-10 flex-shrink-0 bg-slate-50 border border-slate-200/80 rounded-l-2xl flex items-center justify-center text-[10px] font-mono text-slate-400 h-28 select-none shadow-sm">
-              1-3
-            </div>
-            
+          <div className="mb-4">
             {/* Row Content */}
-            <div className="flex-1 p-6 bg-gradient-to-br from-[#001f3f] via-[#001124] to-[#002d5c] text-white flex items-center justify-between rounded-r-2xl border-y border-r border-slate-200/80 shadow-md">
+            <div className="p-6 bg-gradient-to-br from-[#001f3f] via-[#001124] to-[#002d5c] text-white flex flex-col lg:flex-row items-start lg:items-center justify-between rounded-2xl border border-slate-200/80 shadow-md gap-4">
               <div>
-                <span className="text-[10px] font-mono tracking-widest text-amber-400 font-bold uppercase bg-white/10 px-2 py-0.5 rounded-full">Interactive Sheet 1</span>
+                <span className="text-[10px] font-mono tracking-widest text-amber-400 font-bold uppercase bg-white/10 px-2.5 py-1 rounded-full">Sistem Terpadu</span>
                 <h1 className="text-2xl font-bold tracking-tight mt-2 font-display">
                   📊 Ringkasan Eksekutif & Dashboard Keuangan LPK Nandita
                 </h1>
@@ -194,18 +168,18 @@ export default function ExcelDashboard({
                   Sistem Informasi Terpadu & Buku Induk Siswa LPK Nandita Floating Hotel Perhotelan dan Kapal Pesiar
                 </p>
               </div>
-              <div className="flex items-center space-x-3">
+              <div className="flex flex-wrap gap-2.5">
                 <button 
                   id="btn-goto-siswa"
                   onClick={() => onSwitchSheet("Siswa")} 
-                  className="bg-white/10 hover:bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg font-medium border border-white/20 transition-all duration-300 shadow-sm"
+                  className="bg-white/10 hover:bg-white/20 text-white text-xs px-3.5 py-2 rounded-xl font-medium border border-white/20 transition-all duration-300 shadow-sm"
                 >
                   Buku Induk Siswa →
                 </button>
                 <button 
                   id="btn-goto-laporan"
                   onClick={() => onSwitchSheet("Laporan Keuangan")} 
-                  className="bg-teal-600 hover:bg-teal-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
+                  className="bg-teal-600 hover:bg-teal-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
                 >
                   <BarChart3 className="w-4 h-4 text-teal-200" />
                   <span>Laporan Keuangan →</span>
@@ -213,7 +187,7 @@ export default function ExcelDashboard({
                 <button 
                   id="btn-goto-kas"
                   onClick={() => onSwitchSheet("Kas Operasional")} 
-                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
                 >
                   <TrendingUp className="w-4 h-4 text-rose-200" />
                   <span>Pendapatan & Pengeluaran →</span>
@@ -221,7 +195,7 @@ export default function ExcelDashboard({
                 <button 
                   id="btn-goto-finance"
                   onClick={() => onSwitchSheet("Keuangan & Tunggakan Siswa")} 
-                  className="bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs px-3 py-1.5 rounded-lg font-bold transition-all duration-300 shadow-md hover:scale-105"
+                  className="bg-amber-400 hover:bg-amber-500 text-slate-950 text-xs px-3.5 py-2 rounded-xl font-bold transition-all duration-300 shadow-md hover:scale-105"
                 >
                   Manajemen Keuangan →
                 </button>
@@ -229,7 +203,7 @@ export default function ExcelDashboard({
                   <button 
                     id="btn-add-user-dash"
                     onClick={onAddUserClick}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-1.5 rounded-lg font-bold border border-indigo-500/30 transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3.5 py-2 rounded-xl font-bold border border-indigo-500/30 transition-all duration-300 shadow-md hover:scale-105 flex items-center space-x-1.5"
                   >
                     <UserPlus className="w-4 h-4 text-indigo-200" />
                     <span>Tambah Pengguna</span>
@@ -240,22 +214,15 @@ export default function ExcelDashboard({
           </div>
 
           {/* Row 4-8: Executive Financial Dashboard (Saldo Kas Akhir, Pemasukan, Pengeluaran, Saldo/Defisit) */}
-          <div className="flex mb-6">
-            <div className="w-10 flex-shrink-0 bg-amber-50/80 border border-amber-200 rounded-l-2xl flex items-center justify-center text-[10px] font-mono text-amber-700 font-black h-44 select-none shadow-xs">
-              4-8
-            </div>
-            
-            <div className="flex-1 p-5 bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-r-2xl border-y border-r border-slate-200/80 shadow-xs flex flex-col justify-between">
-              <div className="flex items-center justify-between mb-3 border-b border-slate-200/60 pb-2">
+          <div className="mb-6">
+            <div className="p-5 bg-gradient-to-r from-slate-50 to-slate-100/50 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-4 border-b border-slate-200/60 pb-3">
                 <div className="flex items-center space-x-2">
                   <Calculator className="w-4 h-4 text-[#001f3f]" />
                   <h2 className="text-xs font-bold font-mono uppercase text-[#001f3f] tracking-wider">
                     Ringkasan Eksekutif & Arus Kas Utama LPK Nandita
                   </h2>
                 </div>
-                <span className="text-[10px] font-mono text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
-                  SHEET: KAS_UTAMA!A4:D8
-                </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -389,14 +356,10 @@ export default function ExcelDashboard({
             </div>
           </div>
 
-          {/* Row 9-14: Main Excel-style Card Indicators */}
-          <div className="flex mb-4">
-            <div className="w-10 flex-shrink-0 bg-slate-50 border border-slate-200/80 rounded-l-2xl flex items-center justify-center text-[10px] font-mono text-slate-400 h-40 select-none shadow-sm">
-              9-14
-            </div>
-            
+          {/* Row 9-14: Main KPI Card Indicators */}
+          <div className="mb-6">
             {/* KPI Cards in a grid */}
-            <div className="flex-1 p-4 grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-100/50 rounded-r-2xl border-y border-r border-slate-200/80">
+            <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-100/50 rounded-2xl border border-slate-200/80">
               {/* Card 1: Students */}
               <motion.div 
                 whileHover={{ y: -3 }}
@@ -478,12 +441,8 @@ export default function ExcelDashboard({
           </div>
 
           {/* Row 15-30: Dual Chart Sheets Embedded */}
-          <div className="flex mb-4">
-            <div className="w-10 flex-shrink-0 bg-slate-50 border border-slate-200/80 rounded-l-2xl flex items-center justify-center text-[10px] font-mono text-slate-400 h-[400px] select-none shadow-sm">
-              15-30
-            </div>
-
-            <div className="flex-1 p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 bg-slate-100/30 rounded-r-2xl border-y border-r border-slate-200/80">
+          <div className="mb-6">
+            <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 bg-slate-100/30 rounded-2xl border border-slate-200/80">
               
               {/* Left Column Chart: Program Studi Distribution */}
               <div className="border border-slate-100 rounded-2xl p-5 bg-white shadow-sm flex flex-col justify-between hover:shadow-md transition-all duration-300">
@@ -493,7 +452,6 @@ export default function ExcelDashboard({
                       <GraduationCap className="w-4 h-4 mr-1.5 text-amber-500" />
                       Sebaran Program Studi
                     </h4>
-                    <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono font-bold">A11:C15</span>
                   </div>
                   
                   {/* Custom Graphic Bar representation */}
@@ -538,7 +496,6 @@ export default function ExcelDashboard({
                       <Ship className="w-4 h-4 mr-1.5 text-amber-500" />
                       Status Penyerapan Kerja
                     </h4>
-                    <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono font-bold">D11:F15</span>
                   </div>
 
                   <div className="space-y-3.5 my-4">
@@ -590,7 +547,6 @@ export default function ExcelDashboard({
                        <BarChart3 className="w-4 h-4 mr-1.5 text-amber-500" />
                        Arus Kas & Tunggakan Siswa
                     </h4>
-                    <span className="text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-mono font-bold">G11:I15</span>
                   </div>
 
                   <div className="space-y-4 my-4">
@@ -643,13 +599,9 @@ export default function ExcelDashboard({
           </div>
 
           {/* Row 31-45: Quick Links and Operations Section */}
-          <div className="flex">
-            <div className="w-10 flex-shrink-0 bg-slate-50 border border-slate-200/80 rounded-l-2xl flex items-center justify-center text-[10px] font-mono text-slate-400 h-36 select-none shadow-sm">
-              31-45
-            </div>
-
+          <div className="mb-4">
             {/* Quick sheets index and instructional notes */}
-            <div className="flex-1 p-6 bg-gradient-to-br from-[#001f3f] to-[#001124] rounded-r-2xl border-y border-r border-slate-200/80 text-white shadow-md">
+            <div className="p-6 bg-gradient-to-br from-[#001f3f] to-[#001124] rounded-2xl border border-slate-200/80 text-white shadow-md">
               <h3 className="text-xs font-bold font-mono uppercase text-amber-400 mb-4 tracking-wider flex items-center">
                 <TrendingUp className="w-4 h-4 mr-2" />
                 ⚡ Lembar Kerja Buku Induk LPK Nandita (Sistem Navigasi Cepat)
