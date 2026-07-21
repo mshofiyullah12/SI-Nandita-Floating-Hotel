@@ -14,7 +14,8 @@ import {
   CheckCircle2, 
   Calendar,
   Layers,
-  RotateCcw
+  RotateCcw,
+  Edit2
 } from "lucide-react";
 import { formatIncomeNotification, WhatsAppNotification } from "../utils/whatsapp";
 
@@ -30,9 +31,13 @@ interface PendapatanPengeluaranSheetProps {
   
   // Handlers
   onAddPendapatanLain: (item: PendapatanLain) => void;
+  onUpdatePendapatanLain?: (item: PendapatanLain) => void;
   onDeletePendapatanLain: (id: string) => void;
   onAddPengeluaranKas: (item: PengeluaranKas) => void;
+  onUpdatePengeluaranKas?: (item: PengeluaranKas) => void;
   onDeletePengeluaranKas: (id: string) => void;
+  onDeletePaymentLog?: (id: string) => void;
+  onUpdatePaymentLog?: (item: PembayaranLog) => void;
   onAddJenisPendapatan: (category: string) => void;
   onAddKatPengeluaran: (category: string) => void;
   onDeleteJenisPendapatan: (category: string) => void;
@@ -49,9 +54,13 @@ export default function PendapatanPengeluaranSheet({
   jenisPendapatan,
   katPengeluaran,
   onAddPendapatanLain,
+  onUpdatePendapatanLain,
   onDeletePendapatanLain,
   onAddPengeluaranKas,
+  onUpdatePengeluaranKas,
   onDeletePengeluaranKas,
+  onDeletePaymentLog,
+  onUpdatePaymentLog,
   onAddJenisPendapatan,
   onAddKatPengeluaran,
   onDeleteJenisPendapatan,
@@ -71,6 +80,11 @@ export default function PendapatanPengeluaranSheet({
   const [showAddForm, setShowAddForm] = useState(false);
   const [newCatName, setNewCatName] = useState("");
   const [showCatConfig, setShowCatConfig] = useState(false);
+
+  // Edit Modal states
+  const [editingPendapatan, setEditingPendapatan] = useState<PendapatanLain | null>(null);
+  const [editingPengeluaran, setEditingPengeluaran] = useState<PengeluaranKas | null>(null);
+  const [editingPaymentLog, setEditingPaymentLog] = useState<PembayaranLog | null>(null);
 
   // Pendapatan Form
   const [incTanggal, setIncTanggal] = useState(new Date().toISOString().split("T")[0]);
@@ -609,6 +623,13 @@ export default function PendapatanPengeluaranSheet({
                           WA Resi
                         </button>
                         <button
+                          onClick={() => setEditingPendapatan(p)}
+                          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition cursor-pointer"
+                          title="Edit Transaksi Pendapatan"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
                           onClick={() => {
                             if (confirm(`Hapus pendapatan "${p.keterangan}"?`)) onDeletePendapatanLain(p.id);
                           }}
@@ -658,12 +679,19 @@ export default function PendapatanPengeluaranSheet({
                       <td className="py-3.5 px-4 font-medium text-slate-900">{e.keterangan}</td>
                       <td className="py-3.5 px-4 font-mono font-bold text-red-600">{formatRupiah(e.jumlah)}</td>
                       <td className="py-3.5 px-4 text-slate-600 font-medium">{e.penanggungJawab}</td>
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right flex items-center justify-end space-x-1">
+                        <button
+                          onClick={() => setEditingPengeluaran(e)}
+                          className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition cursor-pointer"
+                          title="Edit Transaksi Pengeluaran"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={() => {
                             if (confirm(`Hapus pengeluaran "${e.keterangan}"?`)) onDeletePengeluaranKas(e.id);
                           }}
-                          className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition"
+                          className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition cursor-pointer"
                           title="Hapus Transaksi"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -694,6 +722,7 @@ export default function PendapatanPengeluaranSheet({
                     <th className="py-3 px-4">Kategori</th>
                     <th className="py-3 px-4">Deskripsi Metode & Keterangan</th>
                     <th className="py-3 px-4 text-right">Dana Masuk</th>
+                    <th className="py-3 px-4 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
@@ -721,11 +750,66 @@ export default function PendapatanPengeluaranSheet({
                           {formatRupiah(h.jumlah)}
                         </span>
                       </td>
+                      <td className="py-3.5 px-4 text-right flex items-center justify-end space-x-1">
+                        {h.tipe === "Uang Sekolah" ? (
+                          <>
+                            <button
+                              onClick={() => {
+                                const logItem = pembayaranLog.find(p => p.id === h.id);
+                                if (logItem) {
+                                  setEditingPaymentLog(logItem);
+                                }
+                              }}
+                              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition cursor-pointer"
+                              title="Edit Pembayaran SPP"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Apakah Anda yakin ingin menghapus transaksi pembayaran "${h.id}" (${h.subjek})?`)) {
+                                  if (onDeletePaymentLog) onDeletePaymentLog(h.id);
+                                }
+                              }}
+                              className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition cursor-pointer"
+                              title="Hapus Pembayaran SPP"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                const pItem = pendapatanLain.find(p => p.id === h.id);
+                                if (pItem) {
+                                  setEditingPendapatan(pItem);
+                                }
+                              }}
+                              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition cursor-pointer"
+                              title="Edit Pendapatan Lain"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Apakah Anda yakin ingin menghapus transaksi pendapatan "${h.id}" (${h.keterangan})?`)) {
+                                  onDeletePendapatanLain(h.id);
+                                }
+                              }}
+                              className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition cursor-pointer"
+                              title="Hapus Pendapatan"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </td>
                     </tr>
                   ))}
                   {filteredHistory.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-8 text-center text-slate-400 italic">
+                      <td colSpan={8} className="py-8 text-center text-slate-400 italic">
                         Belum ada riwayat transaksi kas masuk
                       </td>
                     </tr>
@@ -947,6 +1031,266 @@ export default function PendapatanPengeluaranSheet({
           </div>
         )}
       </div>
+
+      {/* EDIT PENDAPATAN MODAL */}
+      {editingPendapatan && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
+            <div className="bg-[#001f3f] text-white p-4 flex justify-between items-center">
+              <h3 className="font-bold text-xs uppercase font-mono">Edit Pendapatan Lain ({editingPendapatan.id})</h3>
+              <button onClick={() => setEditingPendapatan(null)} className="text-white hover:text-slate-200">✕</button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (onUpdatePendapatanLain) {
+                  onUpdatePendapatanLain(editingPendapatan);
+                }
+                setEditingPendapatan(null);
+              }}
+              className="p-4 space-y-3 font-sans"
+            >
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Tanggal</label>
+                <input
+                  type="date"
+                  required
+                  value={editingPendapatan.tanggal}
+                  onChange={(e) => setEditingPendapatan({ ...editingPendapatan, tanggal: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#001f3f]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Kategori Penerimaan</label>
+                <select
+                  value={editingPendapatan.kategori}
+                  onChange={(e) => setEditingPendapatan({ ...editingPendapatan, kategori: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-[#001f3f]"
+                >
+                  {jenisPendapatan.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Nominal (Rp)</label>
+                <input
+                  type="number"
+                  required
+                  value={editingPendapatan.jumlah}
+                  onChange={(e) => setEditingPendapatan({ ...editingPendapatan, jumlah: Number(e.target.value) })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs font-mono font-bold text-emerald-800 focus:outline-none focus:ring-1 focus:ring-[#001f3f]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Rincian Keterangan</label>
+                <input
+                  type="text"
+                  required
+                  value={editingPendapatan.keterangan}
+                  onChange={(e) => setEditingPendapatan({ ...editingPendapatan, keterangan: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#001f3f]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Penerima Kas</label>
+                <input
+                  type="text"
+                  required
+                  value={editingPendapatan.penerima}
+                  onChange={(e) => setEditingPendapatan({ ...editingPendapatan, penerima: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#001f3f]"
+                />
+              </div>
+              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingPendapatan(null)}
+                  className="px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 text-xs bg-[#001f3f] text-white rounded font-bold hover:bg-slate-800 cursor-pointer"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PENGELUARAN MODAL */}
+      {editingPengeluaran && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
+            <div className="bg-red-700 text-white p-4 flex justify-between items-center">
+              <h3 className="font-bold text-xs uppercase font-mono">Edit Pengeluaran Kas ({editingPengeluaran.id})</h3>
+              <button onClick={() => setEditingPengeluaran(null)} className="text-white hover:text-slate-200">✕</button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (onUpdatePengeluaranKas) {
+                  onUpdatePengeluaranKas(editingPengeluaran);
+                }
+                setEditingPengeluaran(null);
+              }}
+              className="p-4 space-y-3 font-sans"
+            >
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Tanggal</label>
+                <input
+                  type="date"
+                  required
+                  value={editingPengeluaran.tanggal}
+                  onChange={(e) => setEditingPengeluaran({ ...editingPengeluaran, tanggal: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-red-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Kategori Beban</label>
+                <select
+                  value={editingPengeluaran.kategori}
+                  onChange={(e) => setEditingPengeluaran({ ...editingPengeluaran, kategori: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-red-500"
+                >
+                  {katPengeluaran.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Nominal (Rp)</label>
+                <input
+                  type="number"
+                  required
+                  value={editingPengeluaran.jumlah}
+                  onChange={(e) => setEditingPengeluaran({ ...editingPengeluaran, jumlah: Number(e.target.value) })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs font-mono font-bold text-red-700 focus:outline-none focus:ring-1 focus:ring-red-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Rincian Keterangan</label>
+                <input
+                  type="text"
+                  required
+                  value={editingPengeluaran.keterangan}
+                  onChange={(e) => setEditingPengeluaran({ ...editingPengeluaran, keterangan: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-red-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Penanggung Jawab</label>
+                <input
+                  type="text"
+                  required
+                  value={editingPengeluaran.penanggungJawab}
+                  onChange={(e) => setEditingPengeluaran({ ...editingPengeluaran, penanggungJawab: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-red-500"
+                />
+              </div>
+              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingPengeluaran(null)}
+                  className="px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 text-xs bg-red-600 text-white rounded font-bold hover:bg-red-700 cursor-pointer"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT PEMBAYARAN LOG MODAL */}
+      {editingPaymentLog && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
+            <div className="bg-emerald-700 text-white p-4 flex justify-between items-center">
+              <div>
+                <h3 className="font-bold text-xs uppercase font-mono">Edit Setoran Siswa ({editingPaymentLog.id})</h3>
+                <p className="text-[10px] text-emerald-100">Siswa: {editingPaymentLog.siswaNama}</p>
+              </div>
+              <button onClick={() => setEditingPaymentLog(null)} className="text-white hover:text-slate-200">✕</button>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (onUpdatePaymentLog) {
+                  onUpdatePaymentLog(editingPaymentLog);
+                }
+                setEditingPaymentLog(null);
+              }}
+              className="p-4 space-y-3 font-sans"
+            >
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Tanggal Bayar</label>
+                <input
+                  type="date"
+                  required
+                  value={editingPaymentLog.tanggalBayar}
+                  onChange={(e) => setEditingPaymentLog({ ...editingPaymentLog, tanggalBayar: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Jumlah Setoran (Rp)</label>
+                <input
+                  type="number"
+                  required
+                  value={editingPaymentLog.jumlahBayar}
+                  onChange={(e) => setEditingPaymentLog({ ...editingPaymentLog, jumlahBayar: Number(e.target.value) })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs font-mono font-bold text-emerald-800 focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Metode Pembayaran</label>
+                <input
+                  type="text"
+                  required
+                  value={editingPaymentLog.metodeBayar}
+                  onChange={(e) => setEditingPaymentLog({ ...editingPaymentLog, metodeBayar: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Keterangan</label>
+                <input
+                  type="text"
+                  value={editingPaymentLog.keterangan || ""}
+                  onChange={(e) => setEditingPaymentLog({ ...editingPaymentLog, keterangan: e.target.value })}
+                  className="w-full border border-slate-300 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-600"
+                />
+              </div>
+              <div className="flex justify-end space-x-2 pt-2 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setEditingPaymentLog(null)}
+                  className="px-3 py-1.5 text-xs border border-slate-300 rounded text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 text-xs bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 cursor-pointer"
+                >
+                  Simpan Perubahan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

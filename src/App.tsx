@@ -839,6 +839,35 @@ export default function App() {
     saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments);
   };
 
+  const handleUpdatePaymentLog = (updatedLog: PembayaranLog) => {
+    const oldLog = pembayaranLog.find(p => p.id === updatedLog.id);
+    if (!oldLog) return;
+
+    const diff = updatedLog.jumlahBayar - oldLog.jumlahBayar;
+
+    const updatedPayments = pembayaranLog.map(p => p.id === updatedLog.id ? updatedLog : p);
+    setPembayaranLog(updatedPayments);
+
+    // Update student account if attached
+    const updatedKeuangan = keuangan.map(acc => {
+      if (acc.id === updatedLog.keuanganSiswaId) {
+        const nextPaid = Math.max(acc.totalBayar + diff, 0);
+        const nextPiutang = Math.max(acc.totalBiaya - nextPaid, 0);
+        return {
+          ...acc,
+          totalBayar: nextPaid,
+          piutang: nextPiutang,
+          statusBayar: nextPiutang === 0 ? ("Lunas" as const) : (nextPaid > 0 ? ("Belum Lunas" as const) : ("Belum Bayar" as const)),
+          pembayaranTerakhir: updatedLog.tanggalBayar
+        };
+      }
+      return acc;
+    });
+
+    setKeuangan(updatedKeuangan);
+    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments);
+  };
+
   const handleResetPayments = () => {
     const emptyPayments: PembayaranLog[] = [];
     setPembayaranLog(emptyPayments);
@@ -1014,6 +1043,12 @@ export default function App() {
     saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, keuangan, pembayaranLog, payroll, jobs, customTabs, userAccounts, tagihan, updated);
   };
 
+  const handleUpdatePendapatanLain = (updatedItem: PendapatanLain) => {
+    const updated = pendapatanLain.map(p => p.id === updatedItem.id ? updatedItem : p);
+    setPendapatanLain(updated);
+    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, keuangan, pembayaranLog, payroll, jobs, customTabs, userAccounts, tagihan, updated);
+  };
+
   const handleDeletePendapatanLain = (id: string) => {
     const updated = pendapatanLain.filter(p => p.id !== id);
     setPendapatanLain(updated);
@@ -1023,6 +1058,12 @@ export default function App() {
   // PENGELUARAN KAS ACTIONS
   const handleAddPengeluaranKas = (item: PengeluaranKas) => {
     const updated = [...pengeluaranKas, item];
+    setPengeluaranKas(updated);
+    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, keuangan, pembayaranLog, payroll, jobs, customTabs, userAccounts, tagihan, pendapatanLain, updated);
+  };
+
+  const handleUpdatePengeluaranKas = (updatedItem: PengeluaranKas) => {
+    const updated = pengeluaranKas.map(e => e.id === updatedItem.id ? updatedItem : e);
     setPengeluaranKas(updated);
     saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, keuangan, pembayaranLog, payroll, jobs, customTabs, userAccounts, tagihan, pendapatanLain, updated);
   };
@@ -1304,9 +1345,13 @@ export default function App() {
             jenisPendapatan={jenisPendapatan}
             katPengeluaran={katPengeluaran}
             onAddPendapatanLain={handleAddPendapatanLain}
+            onUpdatePendapatanLain={handleUpdatePendapatanLain}
             onDeletePendapatanLain={handleDeletePendapatanLain}
             onAddPengeluaranKas={handleAddPengeluaranKas}
+            onUpdatePengeluaranKas={handleUpdatePengeluaranKas}
             onDeletePengeluaranKas={handleDeletePengeluaranKas}
+            onDeletePaymentLog={handleDeletePaymentLog}
+            onUpdatePaymentLog={handleUpdatePaymentLog}
             onAddJenisPendapatan={handleAddJenisPendapatan}
             onDeleteJenisPendapatan={handleDeleteJenisPendapatan}
             onAddKatPengeluaran={handleAddKatPengeluaran}
