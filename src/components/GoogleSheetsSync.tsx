@@ -128,12 +128,33 @@ export default function GoogleSheetsSync({
     return () => unsubscribe();
   }, []);
 
+  const handleAuthError = (err: any) => {
+    const errMsg = err?.message || String(err);
+    if (
+      errMsg.toLowerCase().includes("credential") || 
+      errMsg.toLowerCase().includes("auth") || 
+      errMsg.toLowerCase().includes("token") ||
+      errMsg.toLowerCase().includes("key") ||
+      errMsg.toLowerCase().includes("login") ||
+      errMsg.toLowerCase().includes("unauthorized")
+    ) {
+      console.warn("Mendeteksi kredensial Google yang kedaluwarsa atau tidak valid:", errMsg);
+      setUser(null);
+      setToken(null);
+      setNeedsAuth(true);
+      return true;
+    }
+    return false;
+  };
+
   const loadSpreadsheets = async (accessToken: string) => {
     try {
       const files = await fetchUserSpreadsheets(accessToken);
       setSpreadsheets(files);
-    } catch (err) {
+      setNeedsAuth(false);
+    } catch (err: any) {
       console.error("Gagal mengambil spreadsheets:", err);
+      handleAuthError(err);
     }
   };
 
@@ -352,7 +373,11 @@ export default function GoogleSheetsSync({
       }
     } catch (err: any) {
       console.error("Sinkronisasi gagal:", err);
-      setSyncError(err.message || "Gagal menyinkronkan data. Pastikan akun Google Anda memiliki akses.");
+      if (handleAuthError(err)) {
+        setSyncError("Sesi Google Anda telah berakhir atau tidak valid. Silakan sambungkan kembali akun Google Anda.");
+      } else {
+        setSyncError(err.message || "Gagal menyinkronkan data. Pastikan akun Google Anda memiliki akses.");
+      }
     } finally {
       setIsSyncing(false);
     }
@@ -573,7 +598,11 @@ export default function GoogleSheetsSync({
       }
     } catch (err: any) {
       console.error("Penarikan data gagal:", err);
-      setPullError(err.message || "Gagal menarik data. Pastikan nama tab sheet dan format file valid.");
+      if (handleAuthError(err)) {
+        setPullError("Sesi Google Anda telah berakhir atau tidak valid. Silakan sambungkan kembali akun Google Anda.");
+      } else {
+        setPullError(err.message || "Gagal menarik data. Pastikan nama tab sheet dan format file valid.");
+      }
     } finally {
       setIsPulling(false);
     }
@@ -644,6 +673,26 @@ export default function GoogleSheetsSync({
             </svg>
             <span>{isLoggingIn ? "Menghubungkan..." : "Masuk dengan Google"}</span>
           </button>
+
+          {window.self !== window.top && (
+            <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl text-left text-xs text-amber-850 space-y-2.5">
+              <p className="font-semibold flex items-center gap-1.5 text-amber-900">
+                <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>Lingkungan Pratinjau Terdeteksi (iFrame)</span>
+              </p>
+              <p className="leading-relaxed">
+                Google memblokir otentikasi login langsung dari dalam bingkai pratinjau (iFrame) demi keamanan. 
+                Silakan buka aplikasi ini di tab baru terlebih dahulu untuk menghubungkan akun Google Anda dengan aman.
+              </p>
+              <button
+                type="button"
+                onClick={() => window.open(window.location.href, "_blank")}
+                className="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg transition text-center shadow-sm cursor-pointer"
+              >
+                Buka Aplikasi di Tab Baru 🌐
+              </button>
+            </div>
+          )}
 
           {syncError && (
             <p className="text-xs text-red-500 font-medium mt-4">{syncError}</p>

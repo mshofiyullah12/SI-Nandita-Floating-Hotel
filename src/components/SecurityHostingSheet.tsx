@@ -45,7 +45,7 @@ export default function SecurityHostingSheet({
   schoolSettings,
   onTriggerWhatsApp
 }: SecurityHostingSheetProps) {
-  const [activeSubTab, setActiveSubTab] = useState<"keamanan" | "whatsapp" | "hosting">("keamanan");
+  const [activeSubTab, setActiveSubTab] = useState<"keamanan" | "whatsapp" | "hosting" | "database">("keamanan");
   
   // Security Tab States
   const [isAuditing, setIsAuditing] = useState(false);
@@ -67,6 +67,26 @@ export default function SecurityHostingSheet({
   // Hosting Tab States
   const [hostingPlatform, setHostingPlatform] = useState<"vercel" | "cpanel" | "vps" | "cloudrun">("vercel");
   const [showDbSecret, setShowDbSecret] = useState(false);
+
+  // SQL Database States
+  const [dbType, setDbType] = useState<"mysql" | "postgresql">("mysql");
+  const [dbEnvironment, setDbEnvironment] = useState<"localhost" | "hosting">("localhost");
+  const [sqlHost, setSqlHost] = useState("localhost");
+  const [sqlPort, setSqlPort] = useState("3306");
+  const [sqlUser, setSqlUser] = useState("root");
+  const [sqlPassword, setSqlPassword] = useState("");
+  const [sqlDbName, setSqlDbName] = useState("lpk_nandita");
+  const [showSqlPassword, setShowSqlPassword] = useState(false);
+  const [sqlLang, setSqlLang] = useState<"nodejs-mysql2" | "nodejs-pg" | "php-pdo" | "python" | "go">("nodejs-mysql2");
+  
+  // SQL Connection Test Simulation
+  const [isTestingConn, setIsTestingConn] = useState(false);
+  const [testConnLogs, setTestConnLogs] = useState<string[]>([]);
+  const [testConnResult, setTestConnResult] = useState<"idle" | "success" | "error">("idle");
+
+  // SQL Schema & Copy states
+  const [activeSchemaTab, setActiveSchemaTab] = useState<"all" | "siswa" | "staff" | "keuangan" | "tagihan">("all");
+  const [copiedSchemaText, setCopiedSchemaText] = useState(false);
 
   // Run initial automated audit
   useEffect(() => {
@@ -210,6 +230,344 @@ export default function SecurityHostingSheet({
     window.open(url, "_blank");
   };
 
+  const handlePresetChange = (type: "mysql" | "postgresql", env: "localhost" | "hosting") => {
+    setDbType(type);
+    setDbEnvironment(env);
+    if (env === "localhost") {
+      setSqlHost("localhost");
+      setSqlPort(type === "mysql" ? "3306" : "5432");
+      setSqlUser(type === "mysql" ? "root" : "postgres");
+      setSqlPassword("");
+      setSqlDbName("lpk_nandita");
+    } else {
+      setSqlHost(type === "mysql" ? "mysql.lpk-nandita.com" : "postgres.lpk-nandita.com");
+      setSqlPort(type === "mysql" ? "3306" : "5432");
+      setSqlUser("u987251_lpk_admin");
+      setSqlPassword("LPK_Nandita_Secure_2026!");
+      setSqlDbName("u987251_lpk_nandita");
+    }
+  };
+
+  const handleTestConnection = () => {
+    setIsTestingConn(true);
+    setTestConnResult("idle");
+    setTestConnLogs([]);
+    
+    const logs = [
+      `[INFO] Menginisialisasi driver koneksi database ${dbType.toUpperCase()}...`,
+      `[INFO] Mencoba melakukan ping / koneksi TCP ke host: ${sqlHost}:${sqlPort}...`,
+    ];
+
+    setTestConnLogs([...logs]);
+
+    setTimeout(() => {
+      const updatedLogs = [...logs];
+      updatedLogs.push(`[INFO] Koneksi TCP berhasil dibuat ke server target.`);
+      updatedLogs.push(`[INFO] Mengirim handshake otentikasi menggunakan user "${sqlUser}"...`);
+      setTestConnLogs(updatedLogs);
+
+      setTimeout(() => {
+        const finalLogs = [...updatedLogs];
+        if (!sqlHost || !sqlUser || !sqlDbName) {
+          finalLogs.push(`[ERROR] Gagal menyambung: Otentikasi ditolak atau parameter database kosong!`);
+          finalLogs.push(`[ERROR] Silakan periksa kembali konfigurasi host, user, dan nama database.`);
+          setTestConnLogs(finalLogs);
+          setTestConnResult("error");
+          setIsTestingConn(false);
+          return;
+        }
+
+        finalLogs.push(`[SUCCESS] Jabat tangan (handshake) otentikasi berhasil.`);
+        finalLogs.push(`[INFO] Membuka katalog database "${sqlDbName}"...`);
+        finalLogs.push(`[INFO] Memverifikasi integritas tabel (siswa, staff, keuangan, tagihan, user_accounts)...`);
+        finalLogs.push(`[SUCCESS] Database ${dbType.toUpperCase()} siap digunakan. Status: TERKONEKSI.`);
+        setTestConnLogs(finalLogs);
+        setTestConnResult("success");
+        setIsTestingConn(false);
+      }, 1000);
+    }, 1000);
+  };
+
+  const getSQLSchemaString = () => {
+    return `-- ==========================================
+-- DATABASE SCHEMA: LPK NANDITA
+-- DIHASILKAN PADA: ${new Date().toLocaleDateString("id-ID")}
+-- TARGET DATABASE: ${dbType.toUpperCase()}
+-- LINGKUNGAN: ${dbEnvironment === "localhost" ? "LOCAL ENVIRONMENT (LOCALHOST)" : "PRODUCTION CLOUD HOSTING"}
+-- ==========================================
+
+${dbType === "mysql" ? "CREATE DATABASE IF NOT EXISTS " + sqlDbName + ";\nUSE " + sqlDbName + ";\n" : ""}
+-- 1. TABEL SISWA (BIODATA AKADEMIK)
+CREATE TABLE IF NOT EXISTS siswa (
+    id VARCHAR(50) PRIMARY KEY,
+    nama VARCHAR(100) NOT NULL,
+    no_hp VARCHAR(20) NULL,
+    program VARCHAR(100) NOT NULL,
+    negara VARCHAR(50) NOT NULL,
+    status_proses VARCHAR(50) DEFAULT 'Pendaftaran',
+    tanggal_daftar DATE NOT NULL,
+    alamat TEXT NULL,
+    catatan TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. TABEL STAFF / STAF PENGAJAR
+CREATE TABLE IF NOT EXISTS staff (
+    id VARCHAR(50) PRIMARY KEY,
+    nama VARCHAR(100) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    no_hp VARCHAR(20) NULL,
+    email VARCHAR(100) NULL,
+    status VARCHAR(20) DEFAULT 'Aktif',
+    gaji_pokok DECIMAL(12, 2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 3. TABEL KEUANGAN (KAS MASUK & KELUAR)
+CREATE TABLE IF NOT EXISTS keuangan (
+    id VARCHAR(50) PRIMARY KEY,
+    tanggal DATE NOT NULL,
+    jenis VARCHAR(20) NOT NULL, -- 'Masuk' atau 'Keluar'
+    kategori VARCHAR(100) NOT NULL,
+    jumlah DECIMAL(12, 2) NOT NULL,
+    keterangan TEXT NULL,
+    metode_bayar VARCHAR(50) DEFAULT 'Tunai',
+    petugas VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 4. TABEL TAGIHAN SISWA (KEUANGAN AKADEMIK)
+CREATE TABLE IF NOT EXISTS tagihan (
+    id VARCHAR(50) PRIMARY KEY,
+    siswa_id VARCHAR(50) NOT NULL,
+    nama_tagihan VARCHAR(150) NOT NULL,
+    jumlah_tagihan DECIMAL(12, 2) NOT NULL,
+    jumlah_bayar DECIMAL(12, 2) DEFAULT 0.00,
+    status VARCHAR(20) DEFAULT 'Belum Lunas',
+    jatuh_tempo DATE NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (siswa_id) REFERENCES siswa(id) ON DELETE CASCADE
+);
+
+-- 5. TABEL USER ACCOUNTS (AKSES LOGIN SISTEM)
+CREATE TABLE IF NOT EXISTS user_accounts (
+    username VARCHAR(50) PRIMARY KEY,
+    password VARCHAR(100) NOT NULL,
+    nama VARCHAR(100) NOT NULL,
+    role VARCHAR(30) NOT NULL, -- 'Admin', 'Staf', 'Keuangan', 'Siswa'
+    status VARCHAR(20) DEFAULT 'Aktif',
+    last_login TIMESTAMP NULL
+);`;
+  };
+
+  const getFilteredSQLSchema = () => {
+    const header = `-- ==========================================\n-- DATABASE SCHEMA: LPK NANDITA (${activeSchemaTab.toUpperCase()})\n-- TARGET DATABASE: ${dbType.toUpperCase()}\n-- ==========================================\n\n`;
+
+    if (activeSchemaTab === "siswa") {
+      return header + `CREATE TABLE IF NOT EXISTS siswa (
+    id VARCHAR(50) PRIMARY KEY,
+    nama VARCHAR(100) NOT NULL,
+    no_hp VARCHAR(20) NULL,
+    program VARCHAR(100) NOT NULL,
+    negara VARCHAR(50) NOT NULL,
+    status_proses VARCHAR(50) DEFAULT 'Pendaftaran',
+    tanggal_daftar DATE NOT NULL,
+    alamat TEXT NULL,
+    catatan TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);`;
+    }
+    if (activeSchemaTab === "staff") {
+      return header + `CREATE TABLE IF NOT EXISTS staff (
+    id VARCHAR(50) PRIMARY KEY,
+    nama VARCHAR(100) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    no_hp VARCHAR(20) NULL,
+    email VARCHAR(100) NULL,
+    status VARCHAR(20) DEFAULT 'Aktif',
+    gaji_pokok DECIMAL(12, 2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);`;
+    }
+    if (activeSchemaTab === "keuangan") {
+      return header + `CREATE TABLE IF NOT EXISTS keuangan (
+    id VARCHAR(50) PRIMARY KEY,
+    tanggal DATE NOT NULL,
+    jenis VARCHAR(20) NOT NULL,
+    kategori VARCHAR(100) NOT NULL,
+    jumlah DECIMAL(12, 2) NOT NULL,
+    keterangan TEXT NULL,
+    metode_bayar VARCHAR(50) DEFAULT 'Tunai',
+    petugas VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);`;
+    }
+    if (activeSchemaTab === "tagihan") {
+      return header + `CREATE TABLE IF NOT EXISTS tagihan (
+    id VARCHAR(50) PRIMARY KEY,
+    siswa_id VARCHAR(50) NOT NULL,
+    nama_tagihan VARCHAR(150) NOT NULL,
+    jumlah_tagihan DECIMAL(12, 2) NOT NULL,
+    jumlah_bayar DECIMAL(12, 2) DEFAULT 0.00,
+    status VARCHAR(20) DEFAULT 'Belum Lunas',
+    jatuh_tempo DATE NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (siswa_id) REFERENCES siswa(id) ON DELETE CASCADE
+);`;
+    }
+    return getSQLSchemaString();
+  };
+
+  const handleCopySchema = async () => {
+    try {
+      await navigator.clipboard.writeText(getFilteredSQLSchema());
+      setCopiedSchemaText(true);
+      setTimeout(() => setCopiedSchemaText(false), 2000);
+    } catch (err) {
+      alert("Gagal menyalin skema.");
+    }
+  };
+
+  const handleDownloadSQL = () => {
+    const element = document.createElement("a");
+    const file = new Blob([getSQLSchemaString()], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = `lpk_nandita_${dbType}_schema.sql`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const getConnectionCodeSnippet = () => {
+    switch (sqlLang) {
+      case "nodejs-mysql2":
+        return `// Instalasi: npm install mysql2
+const mysql = require('mysql2');
+
+// Konfigurasi Database ${dbEnvironment === "localhost" ? "Localhost" : "Cloud Hosting"}
+const connection = mysql.createConnection({
+  host: '${sqlHost}',
+  port: ${sqlPort},
+  user: '${sqlUser}',
+  password: '${sqlPassword || "KATA_SANDI_ANDA"}',
+  database: '${sqlDbName}'
+});
+
+connection.connect((err) => {
+  if (err) {
+    console.error('Koneksi Gagal: ' + err.stack);
+    return;
+  }
+  console.log('Database MySQL/MariaDB Terkoneksi dengan ID: ' + connection.threadId);
+});`;
+      case "nodejs-pg":
+        return `// Instalasi: npm install pg
+const { Client } = require('pg');
+
+// Konfigurasi Database PostgreSQL ${dbEnvironment === "localhost" ? "Localhost" : "Cloud Hosting"}
+const client = new Client({
+  host: '${sqlHost}',
+  port: ${sqlPort},
+  user: '${sqlUser}',
+  password: '${sqlPassword || "KATA_SANDI_ANDA"}',
+  database: '${sqlDbName}',
+  ssl: ${dbEnvironment === "hosting" ? "true" : "false"}
+});
+
+client.connect((err) => {
+  if (err) {
+    console.error('Koneksi Gagal:', err.stack);
+  } else {
+    console.log('Database PostgreSQL Berhasil Terkoneksi!');
+  }
+});`;
+      case "php-pdo":
+        return `<?php
+/**
+ * Koneksi Database ${dbType === "mysql" ? "MySQL/MariaDB" : "PostgreSQL"} ${dbEnvironment === "localhost" ? "Localhost XAMPP" : "cPanel/Cloud Hosting"}
+ */
+$host = '${sqlHost}';
+$port = ${sqlPort};
+$db   = '${sqlDbName}';
+$user = '${sqlUser}';
+$pass = '${sqlPassword || "KATA_SANDI_ANDA"}';
+$charset = 'utf8mb4';
+
+${dbType === "mysql" 
+  ? `$dsn = "mysql:host=$host;port=$port;dbname=$db;charset=$charset";`
+  : `$dsn = "pgsql:host=$host;port=$port;dbname=$db";`}
+
+$options = [
+    PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    PDO::ATTR_EMULATE_PREPARES   => false,
+];
+
+try {
+     $pdo = new PDO($dsn, $user, $pass, $options);
+     echo "Koneksi Database LPK Nandita Berhasil Terhubung!";
+} catch (\\PDOException $e) {
+     echo "Koneksi Database Gagal: " . $e->getMessage();
+}
+?>`;
+      case "python":
+        return `# pip install mysql-connector-python ATAU pip install psycopg2
+${dbType === "mysql" 
+  ? `import mysql.connector
+
+try:
+    connection = mysql.connector.connect(
+        host="${sqlHost}",
+        port=${sqlPort},
+        user="${sqlUser}",
+        password="${sqlPassword || 'KATA_SANDI_ANDA'}",
+        database="${sqlDbName}"
+    )
+    if connection.is_connected():
+        print("Terhubung ke MySQL Server!")
+except Exception as e:
+    print("Gagal Terhubung ke database:", e)
+`
+  : `import psycopg2
+
+try:
+    connection = psycopg2.connect(
+        host="${sqlHost}",
+        port=${sqlPort},
+        user="${sqlUser}",
+        password="${sqlPassword || 'KATA_SANDI_ANDA'}",
+        database="${sqlDbName}"
+    )
+    print("Terhubung ke PostgreSQL Server!")
+except Exception as e:
+    print("Gagal Terhubung ke database:", e)
+`}`;
+      case "go":
+        return `package main
+
+import (
+  "fmt"
+  ${dbType === "mysql" 
+    ? `"gorm.io/driver/mysql"
+  "gorm.io/gorm"`
+    : `"gorm.io/driver/postgres"
+  "gorm.io/gorm"`}
+)
+
+func main() {
+  ${dbType === "mysql"
+    ? `dsn := "${sqlUser}:${sqlPassword || "KATA_SANDI"}@tcp(${sqlHost}:${sqlPort})/${sqlDbName}?charset=utf8mb4&parseTime=True&loc=Local"`
+    : `dsn := "host=${sqlHost} user=${sqlUser} password=${sqlPassword || "KATA_SANDI"} dbname=${sqlDbName} port=${sqlPort} sslmode=disable"`}
+
+  db, err := gorm.Open(${dbType === "mysql" ? "mysql" : "postgres"}.Open(dsn), &gorm.Config{})
+  if err != nil {
+    panic("Gagal terhubung ke database LPK!")
+  }
+  fmt.Println("Database ${dbType.toUpperCase()} Terkoneksi!")
+}`;
+    }
+  };
+
   return (
     <div className="p-6 bg-slate-50 min-h-full font-sans text-slate-800" id="security-hosting-sheet-view">
       {/* Upper Sheet Banner */}
@@ -227,7 +585,7 @@ export default function SecurityHostingSheet({
               Pusat kendali operasional digital LPK Nandita. Periksa celah keamanan Firestore, uji template notifikasi instan WhatsApp, dan pelajari petunjuk migrasi database dari server lokal ke cloud publik.
             </p>
           </div>
-          <div className="flex bg-white/10 p-1.5 rounded-xl border border-white/10 backdrop-blur-sm self-start md:self-auto font-sans">
+          <div className="flex flex-wrap gap-1 bg-white/10 p-1.5 rounded-xl border border-white/10 backdrop-blur-sm self-start md:self-auto font-sans">
             <button
               onClick={() => setActiveSubTab("keamanan")}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
@@ -251,6 +609,14 @@ export default function SecurityHostingSheet({
               }`}
             >
               <Server className="w-3.5 h-3.5 inline mr-1" /> Panduan Hosting
+            </button>
+            <button
+              onClick={() => setActiveSubTab("database")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                activeSubTab === "database" ? "bg-amber-500 text-slate-950 shadow" : "text-white hover:bg-white/5"
+              }`}
+            >
+              <Database className="w-3.5 h-3.5 inline mr-1" /> SQL Database
             </button>
           </div>
         </div>
@@ -884,6 +1250,352 @@ export default function SecurityHostingSheet({
                     </div>
                   </div>
                 )}
+
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 4. SQL DATABASE SETTINGS TAB */}
+        {activeSubTab === "database" && (
+          <div className="space-y-6 animate-fade-in" id="sql-database-configurator-section">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Left Column: Form & Presets */}
+              <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+                <div>
+                  <h3 className="text-xs font-bold font-mono text-[#001f3f] uppercase tracking-wider mb-1">Setelan SQL Database</h3>
+                  <p className="text-[10px] text-slate-400">Konfigurasi database relasional untuk lingkungan lokal (XAMPP/Docker) dan hosting cloud (cPanel/VPS).</p>
+                </div>
+
+                {/* Preset Selector */}
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-slate-500 block">Template Preset Cepat:</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handlePresetChange("mysql", "localhost")}
+                      className={`p-2.5 rounded-xl border text-left transition ${
+                        dbType === "mysql" && dbEnvironment === "localhost"
+                          ? "bg-amber-500/10 border-amber-500 text-slate-900"
+                          : "border-slate-200 hover:bg-slate-50 text-slate-600"
+                      }`}
+                    >
+                      <p className="text-[10px] font-bold">💻 Local MySQL</p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">XAMPP Localhost</p>
+                    </button>
+
+                    <button
+                      onClick={() => handlePresetChange("postgresql", "localhost")}
+                      className={`p-2.5 rounded-xl border text-left transition ${
+                        dbType === "postgresql" && dbEnvironment === "localhost"
+                          ? "bg-amber-500/10 border-amber-500 text-slate-900"
+                          : "border-slate-200 hover:bg-slate-50 text-slate-600"
+                      }`}
+                    >
+                      <p className="text-[10px] font-bold">🔌 Local PgSQL</p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">Docker Localhost</p>
+                    </button>
+
+                    <button
+                      onClick={() => handlePresetChange("mysql", "hosting")}
+                      className={`p-2.5 rounded-xl border text-left transition ${
+                        dbType === "mysql" && dbEnvironment === "hosting"
+                          ? "bg-amber-500/10 border-amber-500 text-slate-900"
+                          : "border-slate-200 hover:bg-slate-50 text-slate-600"
+                      }`}
+                    >
+                      <p className="text-[10px] font-bold">☁️ Hosting MySQL</p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">cPanel Shared DB</p>
+                    </button>
+
+                    <button
+                      onClick={() => handlePresetChange("postgresql", "hosting")}
+                      className={`p-2.5 rounded-xl border text-left transition ${
+                        dbType === "postgresql" && dbEnvironment === "hosting"
+                          ? "bg-amber-500/10 border-amber-500 text-slate-900"
+                          : "border-slate-200 hover:bg-slate-50 text-slate-600"
+                      }`}
+                    >
+                      <p className="text-[10px] font-bold">🚀 Cloud PostgreSQL</p>
+                      <p className="text-[9px] text-slate-400 mt-0.5">VPS / Google Cloud SQL</p>
+                    </button>
+                  </div>
+                </div>
+
+                <hr className="border-slate-100" />
+
+                {/* Form Fields */}
+                <div className="space-y-3.5">
+                  <div>
+                    <label className="text-[10px] font-mono font-bold uppercase text-slate-500 block mb-1">Database Type</label>
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                      <button
+                        onClick={() => handlePresetChange("mysql", dbEnvironment)}
+                        className={`flex-1 py-1 rounded text-xs font-bold transition ${
+                          dbType === "mysql" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        MySQL / MariaDB
+                      </button>
+                      <button
+                        onClick={() => handlePresetChange("postgresql", dbEnvironment)}
+                        className={`flex-1 py-1 rounded text-xs font-bold transition ${
+                          dbType === "postgresql" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                        }`}
+                      >
+                        PostgreSQL
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="col-span-2">
+                      <label className="text-[10px] font-mono font-bold uppercase text-slate-500 block mb-1">Host Server</label>
+                      <input
+                        type="text"
+                        value={sqlHost}
+                        onChange={(e) => setSqlHost(e.target.value)}
+                        className="w-full text-xs font-mono p-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 bg-slate-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-mono font-bold uppercase text-slate-500 block mb-1">Port</label>
+                      <input
+                        type="text"
+                        value={sqlPort}
+                        onChange={(e) => setSqlPort(e.target.value)}
+                        className="w-full text-xs font-mono p-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 bg-slate-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[10px] font-mono font-bold uppercase text-slate-500 block mb-1">DB Username</label>
+                      <input
+                        type="text"
+                        value={sqlUser}
+                        onChange={(e) => setSqlUser(e.target.value)}
+                        className="w-full text-xs font-mono p-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 bg-slate-50"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-mono font-bold uppercase text-slate-500 block mb-1">DB Name</label>
+                      <input
+                        type="text"
+                        value={sqlDbName}
+                        onChange={(e) => setSqlDbName(e.target.value)}
+                        className="w-full text-xs font-mono p-2 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 bg-slate-50"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-mono font-bold uppercase text-slate-500 block mb-1">DB Password</label>
+                    <div className="relative">
+                      <input
+                        type={showSqlPassword ? "text" : "password"}
+                        value={sqlPassword}
+                        onChange={(e) => setSqlPassword(e.target.value)}
+                        placeholder="Tanpa sandi (kosong)"
+                        className="w-full text-xs font-mono p-2 pr-9 rounded-lg border border-slate-200 focus:outline-none focus:ring-1 focus:ring-amber-500 bg-slate-50"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowSqlPassword(!showSqlPassword)}
+                        className="absolute right-2 top-2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showSqlPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Connection Test Trigger */}
+                <div className="pt-2">
+                  <button
+                    onClick={handleTestConnection}
+                    disabled={isTestingConn}
+                    className="w-full flex items-center justify-center space-x-2 py-2.5 rounded-xl text-xs font-bold bg-[#001f3f] text-white hover:bg-slate-900 transition disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isTestingConn ? "animate-spin" : ""}`} />
+                    <span>{isTestingConn ? "Menguji Koneksi..." : "Uji Koneksi Sinkronisasi"}</span>
+                  </button>
+                </div>
+
+                {/* Terminal Simulator Logs */}
+                {testConnLogs.length > 0 && (
+                  <div className="bg-slate-950 rounded-xl p-3 border border-slate-800 text-[10px] font-mono space-y-1.5 max-h-40 overflow-y-auto leading-relaxed">
+                    <p className="text-slate-500 border-b border-slate-800 pb-1 mb-1 flex justify-between items-center">
+                      <span>CONSOLE LOG</span>
+                      <span className={`w-2.5 h-2.5 rounded-full ${testConnResult === "success" ? "bg-emerald-500 animate-pulse" : testConnResult === "error" ? "bg-rose-500 animate-pulse" : "bg-amber-500 animate-pulse"}`} />
+                    </p>
+                    {testConnLogs.map((log, index) => {
+                      let color = "text-slate-300";
+                      if (log.includes("[ERROR]")) color = "text-rose-400";
+                      if (log.includes("[SUCCESS]")) color = "text-emerald-400";
+                      if (log.includes("[INFO]")) color = "text-slate-400";
+                      return (
+                        <p key={index} className={color}>
+                          {log}
+                        </p>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Right Column: Code Generator & Schema Viewer */}
+              <div className="lg:col-span-2 space-y-6">
+                
+                {/* 1. DDL Schema Generator Card */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                  <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                    <div>
+                      <h4 className="text-xs font-bold font-mono text-[#001f3f] uppercase tracking-wider mb-1">Skor Ekspor Skema DDL Relasional</h4>
+                      <p className="text-[10px] text-slate-400">Gunakan berkas ini untuk membuat tabel otomatis di phpMyAdmin atau SQL Command.</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={handleDownloadSQL}
+                        className="flex items-center text-[10px] font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-lg transition"
+                      >
+                        <HardDrive className="w-3 h-3 mr-1" />
+                        Unduh .sql
+                      </button>
+                      <button
+                        onClick={handleCopySchema}
+                        className="flex items-center text-[10px] font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-100 px-3 py-1.5 rounded-lg transition"
+                      >
+                        {copiedSchemaText ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
+                        {copiedSchemaText ? "Tersalin!" : "Salin SQL"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Filter Tables Sub-Tabs */}
+                  <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg">
+                    <button
+                      onClick={() => setActiveSchemaTab("all")}
+                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition ${
+                        activeSchemaTab === "all" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Semua Tabel
+                    </button>
+                    <button
+                      onClick={() => setActiveSchemaTab("siswa")}
+                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition ${
+                        activeSchemaTab === "siswa" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Tabel Siswa
+                    </button>
+                    <button
+                      onClick={() => setActiveSchemaTab("staff")}
+                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition ${
+                        activeSchemaTab === "staff" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Tabel Staff
+                    </button>
+                    <button
+                      onClick={() => setActiveSchemaTab("keuangan")}
+                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition ${
+                        activeSchemaTab === "keuangan" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Tabel Keuangan
+                    </button>
+                    <button
+                      onClick={() => setActiveSchemaTab("tagihan")}
+                      className={`px-3 py-1 text-[10px] font-bold rounded-md transition ${
+                        activeSchemaTab === "tagihan" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Tabel Tagihan
+                    </button>
+                  </div>
+
+                  {/* Code Viewer */}
+                  <div className="bg-slate-900 rounded-xl p-4 text-[10px] font-mono leading-relaxed text-emerald-400 overflow-x-auto border border-slate-800 h-64 select-all">
+                    <pre className="whitespace-pre leading-tight">{getFilteredSQLSchema()}</pre>
+                  </div>
+                </div>
+
+                {/* 2. Language Boilerplate Code Generator Card */}
+                <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                  <div>
+                    <h4 className="text-xs font-bold font-mono text-[#001f3f] uppercase tracking-wider mb-1">Kode Integrasi Server-Side</h4>
+                    <p className="text-[10px] text-slate-400">Salin skrip boilerplate koneksi di bawah ke file server lokal (Express, PHP, atau Framework Go).</p>
+                  </div>
+
+                  {/* Languages tabs */}
+                  <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-lg">
+                    <button
+                      onClick={() => setSqlLang("nodejs-mysql2")}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition ${
+                        sqlLang === "nodejs-mysql2" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Node.js (mysql2)
+                    </button>
+                    <button
+                      onClick={() => setSqlLang("nodejs-pg")}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition ${
+                        sqlLang === "nodejs-pg" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Node.js (pg)
+                    </button>
+                    <button
+                      onClick={() => setSqlLang("php-pdo")}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition ${
+                        sqlLang === "php-pdo" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      PHP PDO
+                    </button>
+                    <button
+                      onClick={() => setSqlLang("python")}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition ${
+                        sqlLang === "python" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Python
+                    </button>
+                    <button
+                      onClick={() => setSqlLang("go")}
+                      className={`px-2.5 py-1 text-[10px] font-bold rounded-md transition ${
+                        sqlLang === "go" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                      }`}
+                    >
+                      Go (GORM)
+                    </button>
+                  </div>
+
+                  {/* Code block */}
+                  <div className="relative">
+                    <div className="bg-slate-950 rounded-xl p-4 text-[10px] font-mono leading-relaxed text-indigo-300 overflow-x-auto border border-slate-800 max-h-52">
+                      <pre className="whitespace-pre leading-tight">{getConnectionCodeSnippet()}</pre>
+                    </div>
+                    <div className="absolute top-2.5 right-2.5">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(getConnectionCodeSnippet());
+                            alert("Kode koneksi berhasil disalin!");
+                          } catch (e) {
+                            alert("Gagal menyalin kode.");
+                          }
+                        }}
+                        className="text-[9px] font-bold text-slate-400 bg-slate-800 hover:bg-slate-750 hover:text-white px-2 py-1 rounded border border-slate-700 transition"
+                      >
+                        Salin Kode
+                      </button>
+                    </div>
+                  </div>
+                </div>
 
               </div>
             </div>

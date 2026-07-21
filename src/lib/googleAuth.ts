@@ -19,24 +19,16 @@ export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
-  // Check if we already have a token stored in-memory or session
-  const storedToken = sessionStorage.getItem("g_sheets_token");
-  if (storedToken) {
-    cachedAccessToken = storedToken;
-  }
-
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
       if (cachedAccessToken) {
         if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else {
-        // We have a user but no cached token (e.g. refreshed page)
-        // Set needsAuth to true so they can sign in again to get a fresh token
+      } else if (!isSigningIn) {
+        cachedAccessToken = null;
         if (onAuthFailure) onAuthFailure();
       }
     } else {
       cachedAccessToken = null;
-      sessionStorage.removeItem("g_sheets_token");
       if (onAuthFailure) onAuthFailure();
     }
   });
@@ -53,7 +45,6 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     }
 
     cachedAccessToken = credential.accessToken;
-    sessionStorage.setItem("g_sheets_token", cachedAccessToken);
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error("Sign in error:", error);
@@ -64,13 +55,12 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
-  return cachedAccessToken || sessionStorage.getItem("g_sheets_token");
+  return cachedAccessToken;
 };
 
 export const logout = async () => {
   await auth.signOut();
   cachedAccessToken = null;
-  sessionStorage.removeItem("g_sheets_token");
 };
 
 /**
