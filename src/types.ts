@@ -209,6 +209,7 @@ export interface UserAccount {
   password?: string;
   allowedTabs?: string[];
   siswaId?: string; // Menghubungkan akun ke ID Siswa jika rolenya Siswa
+  googleEmail?: string; // Menyimpan email Google yang terhubung untuk sinkronisasi/quick login
 }
 
 export interface TagihanSiswa {

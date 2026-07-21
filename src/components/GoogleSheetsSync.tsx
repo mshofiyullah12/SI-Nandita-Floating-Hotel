@@ -21,7 +21,8 @@ import {
   Gender,
   SchoolSettings,
   AbsensiStatus,
-  StaffRole
+  StaffRole,
+  UserAccount
 } from "../types";
 import { 
   FileSpreadsheet, 
@@ -34,7 +35,8 @@ import {
   ArrowRight,
   PlusCircle,
   HelpCircle,
-  CloudDownload
+  CloudDownload,
+  UserCheck
 } from "lucide-react";
 
 interface GoogleSheetsSyncProps {
@@ -46,6 +48,8 @@ interface GoogleSheetsSyncProps {
   pengeluaranKas: PengeluaranKas[];
   tagihan: TagihanSiswa[];
   schoolSettings?: SchoolSettings;
+  currentUser?: UserAccount | null;
+  onUpdateUser?: (user: UserAccount) => void;
   onRestoreAllData?: (data: {
     siswa?: Siswa[];
     staff?: Staff[];
@@ -66,6 +70,8 @@ export default function GoogleSheetsSync({
   pengeluaranKas,
   tagihan,
   schoolSettings,
+  currentUser,
+  onUpdateUser,
   onRestoreAllData
 }: GoogleSheetsSyncProps) {
   const [user, setUser] = useState<User | null>(null);
@@ -168,6 +174,14 @@ export default function GoogleSheetsSync({
         setToken(result.accessToken);
         setNeedsAuth(false);
         loadSpreadsheets(result.accessToken);
+
+        // Auto link Google account to profile if applicable
+        if (currentUser && onUpdateUser && result.user.email) {
+          onUpdateUser({
+            ...currentUser,
+            googleEmail: result.user.email
+          });
+        }
       }
     } catch (err: any) {
       console.error("Login gagal:", err);
@@ -747,6 +761,67 @@ export default function GoogleSheetsSync({
                 )}
               </div>
             </div>
+
+            {/* Google Account Linking Status */}
+            {currentUser && (
+              <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                <h3 className="font-bold text-sm text-gray-900 mb-2 flex items-center gap-2">
+                  <UserCheck className="w-4.5 h-4.5 text-emerald-600" />
+                  <span>Koneksi Profil LPK & Google</span>
+                </h3>
+                <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                  Hubungkan akun LPK Nandita Anda dengan email Google ini untuk mengaktifkan sinkronisasi otomatis dan masuk cepat (quick login) sekali klik.
+                </p>
+                {currentUser.googleEmail ? (
+                  <div className="space-y-2">
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                        <span>Terhubung: <strong>{currentUser.googleEmail}</strong></span>
+                      </div>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono uppercase font-bold">Terdaftar</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (window.confirm("Apakah Anda yakin ingin memutuskan tautan email Google Anda dari profil ini?")) {
+                          if (onUpdateUser) {
+                            const { googleEmail, ...rest } = currentUser;
+                            onUpdateUser(rest as any);
+                          }
+                        }
+                      }}
+                      className="text-[10px] text-red-500 hover:underline font-mono block ml-auto"
+                    >
+                      Putuskan tautan profil ✖
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                      <span>Profil Anda saat ini belum terhubung ke akun Google mana pun.</span>
+                    </div>
+                    {user?.email && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (onUpdateUser && user.email) {
+                            onUpdateUser({
+                              ...currentUser,
+                              googleEmail: user.email
+                            });
+                          }
+                        }}
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl transition shadow-sm cursor-pointer font-sans"
+                      >
+                        Tautkan ke {user.email} Sekarang 🔗
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Checklist of Tables to Sync */}
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">

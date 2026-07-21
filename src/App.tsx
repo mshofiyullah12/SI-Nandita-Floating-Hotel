@@ -1358,6 +1358,8 @@ export default function App() {
             pengeluaranKas={pengeluaranKas}
             tagihan={tagihan}
             schoolSettings={schoolSettings}
+            currentUser={currentUser}
+            onUpdateUser={handleUpdateUser}
             onRestoreAllData={handleRestoreAllData}
           />
         );
