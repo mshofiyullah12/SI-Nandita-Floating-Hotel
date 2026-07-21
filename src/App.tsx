@@ -1233,10 +1233,13 @@ export default function App() {
             keuangan={keuangan}
             pembayaranLog={pembayaranLog}
             siswa={siswa}
+            jobs={jobs}
             onAddPayment={handleAddPaymentLog}
             onDeletePayment={handleDeletePaymentLog}
             onUpdateBiayaSiswa={handleUpdateBiayaSiswa}
             onAddKeuanganAccount={handleAddKeuanganAccount}
+            onUpdateJobRegister={handleUpdateJobRegister}
+            onAddJobRegister={handleAddJobRegister}
             onTriggerWhatsApp={(notif) => setPendingWhatsApp(notif)}
             schoolSettings={schoolSettings}
           />
@@ -1257,9 +1260,15 @@ export default function App() {
           <JobRegisterSheet 
             jobs={jobs}
             siswa={siswa}
+            keuangan={keuangan}
+            pembayaranLog={pembayaranLog}
             onAddJobRegister={handleAddJobRegister}
             onUpdateJobRegister={handleUpdateJobRegister}
             onDeleteJobRegister={handleDeleteJobRegister}
+            onAddPayment={handleAddPaymentLog}
+            onAddKeuanganAccount={handleAddKeuanganAccount}
+            onTriggerWhatsApp={(notif) => setPendingWhatsApp(notif)}
+            schoolSettings={schoolSettings}
           />
         );
       case "Data Pengguna":

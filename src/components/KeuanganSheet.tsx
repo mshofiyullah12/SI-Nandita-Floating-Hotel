@@ -19,6 +19,7 @@ interface KeuanganSheetProps {
   onUpdateBiayaSiswa: (keuanganSiswaId: string, newTotalBiaya: number) => void;
   onAddKeuanganAccount: (newAccount: KeuanganSiswa) => void;
   onUpdateJobRegister?: (updatedJob: JobRegister) => void;
+  onAddJobRegister?: (newJob: JobRegister) => void;
   onTriggerWhatsApp?: (notif: WhatsAppNotification) => void;
   schoolSettings?: SchoolSettings;
 }
@@ -33,6 +34,7 @@ export default function KeuanganSheet({
   onUpdateBiayaSiswa,
   onAddKeuanganAccount,
   onUpdateJobRegister,
+  onAddJobRegister,
   onTriggerWhatsApp,
   schoolSettings
 }: KeuanganSheetProps) {
@@ -45,10 +47,24 @@ export default function KeuanganSheet({
   const [isPaymentFormOpen, setIsPaymentFormOpen] = useState(false);
   const [isBiayaFormOpen, setIsBiayaFormOpen] = useState(false);
 
-  // New account state
+  // New account state (Internal vs External)
   const [isAccountFormOpen, setIsAccountFormOpen] = useState(false);
+  const [accountCategory, setAccountCategory] = useState<"internal" | "external">("internal");
   const [newAccSiswaId, setNewAccSiswaId] = useState("");
   const [newAccTotalBiaya, setNewAccTotalBiaya] = useState(15000000);
+
+  // External student specific account creation form fields
+  const [extNama, setExtNama] = useState("");
+  const [extNoHp, setExtNoHp] = useState("");
+  const [extCompany, setExtCompany] = useState("");
+  const [extPosition, setExtPosition] = useState("");
+  const [extLocationType, setExtLocationType] = useState<JobLocationType>(JobLocationType.LuarNegeri);
+  const [extBiayaPemberangkatan, setExtBiayaPemberangkatan] = useState<number>(15000000);
+  const [extFeePT, setExtFeePT] = useState<number>(3000000);
+  const [extDP, setExtDP] = useState<number>(0);
+
+  // Detail Modal State for External Student Rincian & Tunggakan
+  const [activeExternalDetailJob, setActiveExternalDetailJob] = useState<JobRegister | null>(null);
 
   // Payment Form State
   const [payAmount, setPayAmount] = useState<number>(3000000);
@@ -194,40 +210,124 @@ export default function KeuanganSheet({
 
   const handleCreateAccountSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newAccSiswaId) {
-      alert("Pilih siswa terlebih dahulu!");
-      return;
+
+    if (accountCategory === "internal") {
+      if (!newAccSiswaId) {
+        alert("Pilih siswa terlebih dahulu!");
+        return;
+      }
+
+      // Check if account already exists
+      const duplicate = keuangan.find(k => k.siswaId === newAccSiswaId);
+      if (duplicate) {
+        alert("Akun keuangan siswa ini sudah terdaftar!");
+        return;
+      }
+
+      const targetSiswa = siswa.find(s => s.id === newAccSiswaId);
+      if (!targetSiswa) return;
+
+      const newAcc: KeuanganSiswa = {
+        id: `KEU-${Date.now().toString().slice(-4)}`,
+        siswaId: newAccSiswaId,
+        siswaNama: targetSiswa.nama,
+        totalBiaya: Number(newAccTotalBiaya),
+        totalBayar: 0,
+        piutang: Number(newAccTotalBiaya),
+        statusBayar: "Belum Bayar",
+        pembayaranTerakhir: "-"
+      };
+
+      onAddKeuanganAccount(newAcc);
+      setIsAccountFormOpen(false);
+      setNewAccSiswaId("");
+    } else {
+      // External Student Account Creation
+      if (!extNama.trim()) {
+        alert("Nama siswa eksternal wajib diisi!");
+        return;
+      }
+      if (!extCompany.trim() || !extPosition.trim()) {
+        alert("Nama Perusahaan dan Posisi Lowongan wajib diisi!");
+        return;
+      }
+
+      const extSiswaId = `EXT-${Date.now().toString().slice(-4)}`;
+      const jobRegId = `JOB-${Date.now().toString().slice(-4)}`;
+      const keuAccId = `KEU-${Date.now().toString().slice(-4)}`;
+      const regDate = new Date().toISOString().split("T")[0];
+
+      const initialPaid = Number(extDP) || 0;
+      const totalCost = Number(extBiayaPemberangkatan) || 0;
+      const remainingPiutang = Math.max(totalCost - initialPaid, 0);
+
+      // 1. Create JobRegister entry for External candidate
+      const newJob: JobRegister = {
+        id: jobRegId,
+        siswaId: extSiswaId,
+        siswaNama: extNama.trim(),
+        programStudi: "Eksternal LPK",
+        namaPerusahaan: extCompany.trim(),
+        posisi: extPosition.trim(),
+        lokasiTipe: extLocationType,
+        negaraKota: extLocationType === JobLocationType.LuarNegeri ? "Luar Negeri" : "Dalam Negeri",
+        gajiPerkiraan: "-",
+        tanggalDaftar: regDate,
+        status: JobStatus.Daftar,
+        isExternal: true,
+        noHpExternal: extNoHp.trim(),
+        biayaPemberangkatan: totalCost,
+        feePemberangkatanPT: Number(extFeePT) || 0,
+        totalBayarExternal: initialPaid
+      };
+
+      if (onAddJobRegister) {
+        onAddJobRegister(newJob);
+      }
+
+      // 2. Create KeuanganSiswa record
+      const newKeu: KeuanganSiswa = {
+        id: keuAccId,
+        siswaId: extSiswaId,
+        siswaNama: extNama.trim(),
+        totalBiaya: totalCost,
+        totalBayar: initialPaid,
+        piutang: remainingPiutang,
+        statusBayar: remainingPiutang <= 0 ? "Lunas" : initialPaid > 0 ? "Belum Lunas" : "Belum Bayar",
+        pembayaranTerakhir: initialPaid > 0 ? regDate : "-"
+      };
+
+      onAddKeuanganAccount(newKeu);
+
+      // 3. Log initial payment DP if > 0
+      if (initialPaid > 0) {
+        const newPayment: PembayaranLog = {
+          id: `PAY-${Date.now().toString().slice(-4)}`,
+          keuanganSiswaId: keuAccId,
+          siswaNama: extNama.trim(),
+          tanggalBayar: regDate,
+          jumlahBayar: initialPaid,
+          metodeBayar: "Transfer Bank",
+          keterangan: "Uang Muka (DP) Pembukaan Rekening Pemberangkatan Eksternal"
+        };
+        onAddPayment(newPayment);
+      }
+
+      setIsAccountFormOpen(false);
+      // Reset form fields
+      setExtNama("");
+      setExtNoHp("");
+      setExtCompany("");
+      setExtPosition("");
+      setExtBiayaPemberangkatan(15000000);
+      setExtFeePT(3000000);
+      setExtDP(0);
     }
-
-    // Check if account already exists
-    const duplicate = keuangan.find(k => k.siswaId === newAccSiswaId);
-    if (duplicate) {
-      alert("Akun keuangan siswa ini sudah terdaftar!");
-      return;
-    }
-
-    const targetSiswa = siswa.find(s => s.id === newAccSiswaId);
-    if (!targetSiswa) return;
-
-    const newAcc: KeuanganSiswa = {
-      id: `KEU-${Date.now().toString().slice(-4)}`,
-      siswaId: newAccSiswaId,
-      siswaNama: targetSiswa.nama,
-      totalBiaya: Number(newAccTotalBiaya),
-      totalBayar: 0,
-      piutang: Number(newAccTotalBiaya),
-      statusBayar: "Belum Bayar",
-      pembayaranTerakhir: "-"
-    };
-
-    onAddKeuanganAccount(newAcc);
-    setIsAccountFormOpen(false);
-    setNewAccSiswaId("");
   };
 
   const handleRecordExternalPaymentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeExternalJob || !onUpdateJobRegister) return;
+    if (!activeExternalJob) return;
 
     if (externalPayAmount <= 0) {
       alert("Jumlah pembayaran harus lebih besar dari Rp 0!");
@@ -247,7 +347,55 @@ export default function KeuanganSheet({
       totalBayarExternal: nextPaid
     };
 
-    onUpdateJobRegister(updatedJob);
+    if (onUpdateJobRegister) {
+      onUpdateJobRegister(updatedJob);
+    }
+
+    // Also find and update / create KeuanganSiswa record to keep in perfect sync!
+    let matchingKeu = keuangan.find(k => k.siswaId === activeExternalJob.siswaId || k.siswaNama === activeExternalJob.siswaNama);
+    let keuId = matchingKeu?.id;
+
+    if (matchingKeu) {
+      const newTotalPaid = matchingKeu.totalBayar + externalPayAmount;
+      const newPiutang = Math.max(matchingKeu.totalBiaya - newTotalPaid, 0);
+      // Update account state via onUpdateBiayaSiswa logic or onAddPayment
+      const newPayment: PembayaranLog = {
+        id: `PAY-${Date.now().toString().slice(-4)}`,
+        keuanganSiswaId: matchingKeu.id,
+        siswaNama: activeExternalJob.siswaNama,
+        tanggalBayar: externalPayDate,
+        jumlahBayar: externalPayAmount,
+        metodeBayar: "Transfer Bank",
+        keterangan: externalPayNotes || "Angsuran Pembayaran Eksternal"
+      };
+      onAddPayment(newPayment);
+    } else {
+      // Create new KeuanganSiswa for this external student
+      keuId = `KEU-${Date.now().toString().slice(-4)}`;
+      const totalCost = activeExternalJob.biayaPemberangkatan || 0;
+      const newKeu: KeuanganSiswa = {
+        id: keuId,
+        siswaId: activeExternalJob.siswaId,
+        siswaNama: activeExternalJob.siswaNama,
+        totalBiaya: totalCost,
+        totalBayar: nextPaid,
+        piutang: Math.max(totalCost - nextPaid, 0),
+        statusBayar: (totalCost - nextPaid) <= 0 ? "Lunas" : "Belum Lunas",
+        pembayaranTerakhir: externalPayDate
+      };
+      onAddKeuanganAccount(newKeu);
+
+      const newPayment: PembayaranLog = {
+        id: `PAY-${Date.now().toString().slice(-4)}`,
+        keuanganSiswaId: keuId,
+        siswaNama: activeExternalJob.siswaNama,
+        tanggalBayar: externalPayDate,
+        jumlahBayar: externalPayAmount,
+        metodeBayar: "Transfer Bank",
+        keterangan: externalPayNotes || "Angsuran Pembayaran Eksternal"
+      };
+      onAddPayment(newPayment);
+    }
     
     // Trigger WA notification for external student if onTriggerWhatsApp is defined
     if (onTriggerWhatsApp) {
@@ -744,6 +892,15 @@ export default function KeuanganSheet({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
+                            setActiveExternalDetailJob(job);
+                          }}
+                          className="px-2 py-0.5 text-[10px] bg-[#001f3f] text-white font-sans font-semibold rounded hover:bg-slate-900 cursor-pointer"
+                        >
+                          Rincian & Tunggakan
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             setActiveExternalJob(job);
                             setExternalPayAmount(sisaTunggakan);
                             setIsExternalPaymentFormOpen(true);
@@ -1078,61 +1235,195 @@ export default function KeuanganSheet({
         </div>
       )}
 
-      {/* Account Creation Modal */}
+      {/* Account Creation Modal (Internal & Eksternal) */}
       {isAccountFormOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md animate-scale-in">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg animate-scale-in max-h-[90vh] flex flex-col">
             <div className="p-4 border-b border-gray-200 bg-teal-800 text-white rounded-t-lg flex justify-between items-center">
-              <h3 className="font-bold text-sm">Buka Rekening Pendidikan Siswa</h3>
-              <button onClick={() => setIsAccountFormOpen(false)} className="text-white">✕</button>
+              <div>
+                <h3 className="font-bold text-sm">Buka Rekening Keuangan Siswa</h3>
+                <p className="text-[10px] text-teal-100 mt-0.5">Buat akun pos tagihan untuk Siswa Internal LPK atau Siswa Eksternal Job Placement</p>
+              </div>
+              <button onClick={() => setIsAccountFormOpen(false)} className="text-white hover:text-gray-200">✕</button>
+            </div>
+
+            {/* Category Toggle Header */}
+            <div className="bg-gray-100 p-2 border-b border-gray-200 flex justify-center space-x-2">
+              <button
+                type="button"
+                onClick={() => setAccountCategory("internal")}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition cursor-pointer ${
+                  accountCategory === "internal"
+                    ? "bg-teal-800 text-white shadow"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                Siswa Internal LPK
+              </button>
+              <button
+                type="button"
+                onClick={() => setAccountCategory("external")}
+                className={`px-4 py-1.5 rounded-md text-xs font-bold transition cursor-pointer ${
+                  accountCategory === "external"
+                    ? "bg-amber-700 text-white shadow"
+                    : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                Siswa Eksternal LPK
+              </button>
             </div>
             
-            <form onSubmit={handleCreateAccountSubmit} className="p-4 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Pilih Siswa Aktif *</label>
-                <select
-                  required
-                  value={newAccSiswaId}
-                  onChange={(e) => setNewAccSiswaId(e.target.value)}
-                  className="w-full border border-gray-300 bg-white rounded px-2.5 py-1.5 text-xs focus:outline-none"
-                >
-                  <option value="">-- Pilih Siswa --</option>
-                  {siswa.map(s => {
-                    const hasAccount = keuangan.some(k => k.siswaId === s.id);
-                    return (
-                      <option key={s.id} value={s.id} disabled={hasAccount}>
-                        {s.nama} ({s.nis}) {hasAccount ? "[Akun Sudah Ada]" : ""}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
+            <form onSubmit={handleCreateAccountSubmit} className="p-4 space-y-3 overflow-y-auto flex-1">
+              {accountCategory === "internal" ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Pilih Siswa Internal Aktif *</label>
+                    <select
+                      required
+                      value={newAccSiswaId}
+                      onChange={(e) => setNewAccSiswaId(e.target.value)}
+                      className="w-full border border-gray-300 bg-white rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                    >
+                      <option value="">-- Pilih Siswa --</option>
+                      {siswa.map(s => {
+                        const hasAccount = keuangan.some(k => k.siswaId === s.id);
+                        return (
+                          <option key={s.id} value={s.id} disabled={hasAccount}>
+                            {s.nama} ({s.nis}) {hasAccount ? "[Akun Sudah Ada]" : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Nominal Biaya Pendidikan Pendidikan (Rp)</label>
-                <input
-                  type="number"
-                  required
-                  value={newAccTotalBiaya}
-                  onChange={(e) => setNewAccTotalBiaya(Number(e.target.value))}
-                  placeholder="15000000"
-                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
-                />
-              </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Nominal Biaya Pendidikan (Rp)</label>
+                    <input
+                      type="number"
+                      required
+                      value={newAccTotalBiaya}
+                      onChange={(e) => setNewAccTotalBiaya(Number(e.target.value))}
+                      placeholder="15000000"
+                      className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="bg-amber-50 p-2.5 rounded border border-amber-200 text-xs text-amber-900 mb-2">
+                    Buka rekening untuk siswa eksternal. Sistem akan otomatis mensinkronkan data dengan <strong>Job Register / Lowongan Siswa Eksternal</strong>.
+                  </div>
 
-              <div className="pt-2 flex justify-end space-x-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Nama Siswa Eksternal *</label>
+                      <input
+                        type="text"
+                        required
+                        value={extNama}
+                        onChange={(e) => setExtNama(e.target.value)}
+                        placeholder="Contoh: Budi Santoso"
+                        className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">No. HP / WhatsApp</label>
+                      <input
+                        type="text"
+                        value={extNoHp}
+                        onChange={(e) => setExtNoHp(e.target.value)}
+                        placeholder="081234567890"
+                        className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Mitra Perusahaan / Kapal *</label>
+                      <input
+                        type="text"
+                        required
+                        value={extCompany}
+                        onChange={(e) => setExtCompany(e.target.value)}
+                        placeholder="Contoh: Royal Caribbean / PT Maritime"
+                        className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">Posisi Lowongan *</label>
+                      <input
+                        type="text"
+                        required
+                        value={extPosition}
+                        onChange={(e) => setExtPosition(e.target.value)}
+                        placeholder="Contoh: Housekeeping Steward"
+                        className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Tipe Lokasi Penempatan</label>
+                    <select
+                      value={extLocationType}
+                      onChange={(e) => setExtLocationType(e.target.value as JobLocationType)}
+                      className="w-full border border-gray-300 bg-white rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                    >
+                      <option value={JobLocationType.LuarNegeri}>Luar Negeri (Kapal Pesiar / Hotel Intl)</option>
+                      <option value={JobLocationType.DalamNegeri}>Dalam Negeri (Hotel / Resort Lokal)</option>
+                    </select>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 border-t border-gray-200 pt-3 mt-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Biaya Pemberangkatan (Rp) *</label>
+                      <input
+                        type="number"
+                        required
+                        value={extBiayaPemberangkatan}
+                        onChange={(e) => setExtBiayaPemberangkatan(Number(e.target.value))}
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Fee PT Mitra (Rp)</label>
+                      <input
+                        type="number"
+                        value={extFeePT}
+                        onChange={(e) => setExtFeePT(Number(e.target.value))}
+                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Uang Muka / DP (Rp)</label>
+                      <input
+                        type="number"
+                        value={extDP}
+                        onChange={(e) => setExtDP(Number(e.target.value))}
+                        placeholder="0"
+                        className="w-full border border-emerald-400 bg-emerald-50 rounded px-2 py-1.5 text-xs font-bold text-emerald-900 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="pt-3 flex justify-end space-x-2 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => setIsAccountFormOpen(false)}
-                  className="px-4 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
+                  className="px-4 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600 cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs bg-teal-800 text-white rounded hover:bg-teal-900 font-semibold"
+                  className={`px-4 py-1.5 text-xs text-white rounded font-bold cursor-pointer ${
+                    accountCategory === "internal" ? "bg-teal-800 hover:bg-teal-900" : "bg-amber-700 hover:bg-amber-800"
+                  }`}
                 >
-                  Buka Rekening Kas
+                  {accountCategory === "internal" ? "Buka Rekening Internal" : "Buka Rekening Eksternal & Sync Job"}
                 </button>
               </div>
             </form>
@@ -1221,6 +1512,191 @@ export default function KeuanganSheet({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Detailed Modal: Rincian & Tunggakan Siswa Eksternal */}
+      {activeExternalDetailJob && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-scale-in">
+            {/* Modal Header */}
+            <div className="bg-[#001f3f] text-white p-4 flex justify-between items-center border-b border-slate-700">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[10px] font-mono uppercase bg-amber-500 text-slate-950 font-black px-2 py-0.5 rounded">
+                    Siswa Eksternal Job
+                  </span>
+                  <span className="text-xs font-mono text-slate-300">ID: {activeExternalDetailJob.id}</span>
+                </div>
+                <h3 className="text-base font-bold font-display mt-1">
+                  Rincian & Tunggakan Keuangan: {activeExternalDetailJob.siswaNama}
+                </h3>
+              </div>
+              <button
+                onClick={() => setActiveExternalDetailJob(null)}
+                className="text-slate-300 hover:text-white text-lg font-bold p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+              {/* Student & Job Info */}
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-slate-500">Nama Siswa:</span>
+                    <p className="font-bold text-slate-900">{activeExternalDetailJob.siswaNama}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">No. WhatsApp / HP:</span>
+                    <p className="font-bold text-slate-900">{activeExternalDetailJob.noHpExternal || "-"}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Mitra Perusahaan / Kapal:</span>
+                    <p className="font-bold text-slate-900">{activeExternalDetailJob.namaPerusahaan}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Posisi Lowongan:</span>
+                    <p className="font-bold text-slate-900">{activeExternalDetailJob.posisi}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Metrics Cards */}
+              {(() => {
+                const totalCost = activeExternalDetailJob.biayaPemberangkatan || 0;
+                const totalPaid = activeExternalDetailJob.totalBayarExternal || 0;
+                const arrears = Math.max(totalCost - totalPaid, 0);
+                const isLunas = arrears <= 0;
+
+                return (
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                      <span className="text-[10px] text-blue-700 uppercase font-mono font-bold block">Total Biaya Proses</span>
+                      <span className="text-base font-black font-mono text-blue-900">{formatRupiah(totalCost)}</span>
+                    </div>
+                    <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
+                      <span className="text-[10px] text-emerald-700 uppercase font-mono font-bold block">Telah Dibayar</span>
+                      <span className="text-base font-black font-mono text-emerald-900">{formatRupiah(totalPaid)}</span>
+                    </div>
+                    <div className={`p-3 rounded-lg border ${isLunas ? "bg-teal-50 border-teal-200" : "bg-red-50 border-red-200"}`}>
+                      <span className={`text-[10px] uppercase font-mono font-bold block ${isLunas ? "text-teal-700" : "text-red-700"}`}>
+                        {isLunas ? "Status Pelunasan" : "Sisa Tunggakan"}
+                      </span>
+                      <span className={`text-base font-black font-mono ${isLunas ? "text-teal-900" : "text-red-800"}`}>
+                        {isLunas ? "LUNAS" : formatRupiah(arrears)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Payment History Log */}
+              <div>
+                <h4 className="text-xs font-bold text-slate-800 uppercase font-mono mb-2 flex items-center">
+                  <Receipt className="w-3.5 h-3.5 mr-1.5 text-slate-600" />
+                  Riwayat Setoran / Angsuran Masuk
+                </h4>
+                {(() => {
+                  const matchingKeu = keuangan.find(k => k.siswaId === activeExternalDetailJob.siswaId || k.siswaNama === activeExternalDetailJob.siswaNama);
+                  const logs = matchingKeu
+                    ? pembayaranLog.filter(p => p.keuanganSiswaId === matchingKeu.id)
+                    : pembayaranLog.filter(p => p.siswaNama === activeExternalDetailJob.siswaNama);
+
+                  if (logs.length === 0) {
+                    return (
+                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-center text-xs text-slate-400">
+                        Belum ada riwayat setoran tercatat untuk siswa eksternal ini.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="border border-slate-200 rounded-lg overflow-hidden">
+                      <table className="w-full text-left text-xs font-mono">
+                        <thead className="bg-slate-100 text-slate-600 border-b border-slate-200">
+                          <tr>
+                            <th className="p-2">#</th>
+                            <th className="p-2">Tanggal</th>
+                            <th className="p-2">Metode</th>
+                            <th className="p-2 text-right">Jumlah Setoran</th>
+                            <th className="p-2">Keterangan</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {logs.map((log, i) => (
+                            <tr key={log.id} className="hover:bg-slate-50">
+                              <td className="p-2 text-slate-400">{i + 1}</td>
+                              <td className="p-2 text-slate-700">{log.tanggalBayar}</td>
+                              <td className="p-2 text-slate-600">{log.metodeBayar}</td>
+                              <td className="p-2 text-right font-bold text-emerald-700">{formatRupiah(log.jumlahBayar)}</td>
+                              <td className="p-2 text-slate-500 truncate max-w-[150px]">{log.keterangan}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="bg-slate-50 p-4 border-t border-slate-200 flex flex-wrap gap-2 justify-between items-center">
+              <button
+                onClick={() => {
+                  const totalCost = activeExternalDetailJob.biayaPemberangkatan || 0;
+                  const totalPaid = activeExternalDetailJob.totalBayarExternal || 0;
+                  const arrears = Math.max(totalCost - totalPaid, 0);
+                  const msg = formatReceivableNotification(
+                    activeExternalDetailJob.siswaNama,
+                    totalCost,
+                    arrears,
+                    schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
+                    schoolSettings?.waTemplateTagihanSiswa
+                  );
+                  if (onTriggerWhatsApp) {
+                    onTriggerWhatsApp({
+                      recipientName: activeExternalDetailJob.siswaNama,
+                      phone: activeExternalDetailJob.noHpExternal || "",
+                      category: "Tunggakan Siswa Eksternal",
+                      message: msg
+                    });
+                  }
+                }}
+                disabled={!activeExternalDetailJob.noHpExternal}
+                className="px-3 py-1.5 bg-emerald-600 text-white rounded text-xs font-bold hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center space-x-1 cursor-pointer"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>Kirim Rincian WA</span>
+              </button>
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => {
+                    const totalCost = activeExternalDetailJob.biayaPemberangkatan || 0;
+                    const totalPaid = activeExternalDetailJob.totalBayarExternal || 0;
+                    const arrears = Math.max(totalCost - totalPaid, 0);
+                    setActiveExternalJob(activeExternalDetailJob);
+                    setExternalPayAmount(arrears);
+                    setIsExternalPaymentFormOpen(true);
+                  }}
+                  className="px-4 py-1.5 bg-amber-600 text-white rounded text-xs font-bold hover:bg-amber-700 flex items-center space-x-1 cursor-pointer"
+                >
+                  <DollarSign className="w-3.5 h-3.5" />
+                  <span>Input Setoran / Bayar</span>
+                </button>
+                <button
+                  onClick={() => setActiveExternalDetailJob(null)}
+                  className="px-4 py-1.5 bg-slate-200 text-slate-700 rounded text-xs font-bold hover:bg-slate-300 cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
