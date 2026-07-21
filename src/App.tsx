@@ -819,24 +819,36 @@ export default function App() {
     const updatedPayments = pembayaranLog.filter(p => p.id !== paymentId);
     setPembayaranLog(updatedPayments);
 
+    let targetSiswaId = "";
     // Revert calculations on student account
     const updatedKeuangan = keuangan.map(acc => {
       if (acc.id === deletedLog.keuanganSiswaId) {
+        targetSiswaId = acc.siswaId;
         const nextPaid = Math.max(acc.totalBayar - deletedLog.jumlahBayar, 0);
-        const nextPiutang = acc.totalBiaya - nextPaid;
+        const nextPiutang = Math.max(acc.totalBiaya - nextPaid, 0);
         return {
           ...acc,
           totalBayar: nextPaid,
           piutang: nextPiutang,
-          statusBayar: nextPaid === 0 ? ("Belum Bayar" as const) : ("Belum Lunas" as const),
+          statusBayar: nextPiutang <= 0 ? ("Lunas" as const) : (nextPaid > 0 ? ("Belum Lunas" as const) : ("Belum Bayar" as const)),
           pembayaranTerakhir: updatedPayments.filter(p => p.keuanganSiswaId === acc.id).slice(-1)[0]?.tanggalBayar || "-"
         };
       }
       return acc;
     });
 
+    // Also sync external job if applicable
+    const updatedJobs = jobs.map(j => {
+      if (targetSiswaId && (j.siswaId === targetSiswaId || j.id === targetSiswaId)) {
+        const nextPaidExt = Math.max((j.totalBayarExternal || 0) - deletedLog.jumlahBayar, 0);
+        return { ...j, totalBayarExternal: nextPaidExt };
+      }
+      return j;
+    });
+
     setKeuangan(updatedKeuangan);
-    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments);
+    setJobs(updatedJobs);
+    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments, payroll, updatedJobs);
   };
 
   const handleUpdatePaymentLog = (updatedLog: PembayaranLog) => {
@@ -848,24 +860,36 @@ export default function App() {
     const updatedPayments = pembayaranLog.map(p => p.id === updatedLog.id ? updatedLog : p);
     setPembayaranLog(updatedPayments);
 
+    let targetSiswaId = "";
     // Update student account if attached
     const updatedKeuangan = keuangan.map(acc => {
       if (acc.id === updatedLog.keuanganSiswaId) {
+        targetSiswaId = acc.siswaId;
         const nextPaid = Math.max(acc.totalBayar + diff, 0);
         const nextPiutang = Math.max(acc.totalBiaya - nextPaid, 0);
         return {
           ...acc,
           totalBayar: nextPaid,
           piutang: nextPiutang,
-          statusBayar: nextPiutang === 0 ? ("Lunas" as const) : (nextPaid > 0 ? ("Belum Lunas" as const) : ("Belum Bayar" as const)),
+          statusBayar: nextPiutang <= 0 ? ("Lunas" as const) : (nextPaid > 0 ? ("Belum Lunas" as const) : ("Belum Bayar" as const)),
           pembayaranTerakhir: updatedLog.tanggalBayar
         };
       }
       return acc;
     });
 
+    // Also sync external job if applicable
+    const updatedJobs = jobs.map(j => {
+      if (targetSiswaId && (j.siswaId === targetSiswaId || j.id === targetSiswaId)) {
+        const nextPaidExt = Math.max((j.totalBayarExternal || 0) + diff, 0);
+        return { ...j, totalBayarExternal: nextPaidExt };
+      }
+      return j;
+    });
+
     setKeuangan(updatedKeuangan);
-    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments);
+    setJobs(updatedJobs);
+    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments, payroll, updatedJobs);
   };
 
   const handleResetPayments = () => {

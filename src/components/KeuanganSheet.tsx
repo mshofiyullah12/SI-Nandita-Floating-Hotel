@@ -1135,11 +1135,12 @@ export default function KeuanganSheet({
                                   const updated = keuangan.find(k => k.id === activeAccountDetails.id);
                                   if (updated) {
                                     const optPaid = Math.max(updated.totalBayar - log.jumlahBayar, 0);
+                                    const optPiutang = Math.max(updated.totalBiaya - optPaid, 0);
                                     setActiveAccountDetails({
                                       ...updated,
                                       totalBayar: optPaid,
-                                      piutang: updated.totalBiaya - optPaid,
-                                      statusBayar: optPaid === 0 ? "Belum Bayar" : "Belum Lunas"
+                                      piutang: optPiutang,
+                                      statusBayar: optPiutang <= 0 ? "Lunas" : (optPaid > 0 ? "Belum Lunas" : "Belum Bayar")
                                     });
                                   }
                                 }
