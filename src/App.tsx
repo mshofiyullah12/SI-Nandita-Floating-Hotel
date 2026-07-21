@@ -848,7 +848,7 @@ export default function App() {
 
     setKeuangan(updatedKeuangan);
     setJobs(updatedJobs);
-    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments, payroll, updatedJobs);
+    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments, payroll, updatedJobs, customTabs, userAccounts, tagihan, pendapatanLain, pengeluaranKas, utangPegawai, jenisPendapatan, katPengeluaran);
   };
 
   const handleUpdatePaymentLog = (updatedLog: PembayaranLog) => {
@@ -889,7 +889,7 @@ export default function App() {
 
     setKeuangan(updatedKeuangan);
     setJobs(updatedJobs);
-    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments, payroll, updatedJobs);
+    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, updatedKeuangan, updatedPayments, payroll, updatedJobs, customTabs, userAccounts, tagihan, pendapatanLain, pengeluaranKas, utangPegawai, jenisPendapatan, katPengeluaran);
   };
 
   const handleResetPayments = () => {
@@ -994,6 +994,12 @@ export default function App() {
 
   const handleDeleteTagihan = (id: string) => {
     const updated = tagihan.filter(t => t.id !== id);
+    setTagihan(updated);
+    saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, keuangan, pembayaranLog, payroll, jobs, customTabs, userAccounts, updated);
+  };
+
+  const handleClearTagihan = (onlyLunas = false) => {
+    const updated = onlyLunas ? tagihan.filter(t => t.status !== "Lunas") : [];
     setTagihan(updated);
     saveAllToLocalStorage(schoolSettings, siswa, staff, absensi, sertifikat, keuangan, pembayaranLog, payroll, jobs, customTabs, userAccounts, updated);
   };
@@ -1355,6 +1361,7 @@ export default function App() {
             jobsList={jobs}
             onAddTagihan={handleAddTagihan}
             onDeleteTagihan={handleDeleteTagihan}
+            onClearTagihan={handleClearTagihan}
             onMarkAsPaid={handleMarkTagihanAsPaid}
             onTriggerWhatsApp={(notif) => setPendingWhatsApp(notif)}
             schoolSettings={schoolSettings}

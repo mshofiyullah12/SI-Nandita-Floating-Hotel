@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { TagihanSiswa, Siswa, JobRegister, SchoolSettings } from "../types";
-import { Plus, Search, Receipt, Trash2, CheckCircle2, AlertCircle, RefreshCw, UserCheck } from "lucide-react";
+import { Plus, Search, Receipt, Trash2, CheckCircle2, AlertCircle, RefreshCw, UserCheck, RotateCcw, Eraser } from "lucide-react";
 import { formatReceivableNotification, WhatsAppNotification } from "../utils/whatsapp";
 
 interface TagihanSiswaSheetProps {
@@ -9,6 +9,7 @@ interface TagihanSiswaSheetProps {
   jobsList?: JobRegister[];
   onAddTagihan: (newTagihan: TagihanSiswa) => void;
   onDeleteTagihan: (id: string) => void;
+  onClearTagihan?: (onlyLunas?: boolean) => void;
   onMarkAsPaid: (id: string) => void;
   onTriggerWhatsApp?: (notif: WhatsAppNotification) => void;
   schoolSettings?: SchoolSettings;
@@ -20,6 +21,7 @@ export default function TagihanSiswaSheet({
   jobsList = [],
   onAddTagihan,
   onDeleteTagihan,
+  onClearTagihan,
   onMarkAsPaid,
   onTriggerWhatsApp,
   schoolSettings,
@@ -28,6 +30,7 @@ export default function TagihanSiswaSheet({
   const [statusFilter, setStatusFilter] = useState<"Semua" | "Lunas" | "Belum Lunas">("Semua");
   const [kategoriFilter, setKategoriFilter] = useState<"Semua" | "Siswa Internal" | "Siswa Eksternal">("Semua");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showClearModal, setShowClearModal] = useState(false);
 
   // Form states
   const [selectedSiswaId, setSelectedSiswaId] = useState("");
@@ -37,6 +40,14 @@ export default function TagihanSiswaSheet({
   const [deskripsi, setDeskripsi] = useState("");
 
   const externalJobs = jobsList.filter(j => j.isExternal);
+
+  const handleResetForm = () => {
+    setSelectedSiswaId("");
+    setNamaTagihan("");
+    setJumlah(0);
+    setDeskripsi("");
+    setTanggalTagihan(new Date().toISOString().split("T")[0]);
+  };
 
   const filteredTagihan = tagihanList.filter((t) => {
     const matchesSearch =
@@ -120,14 +131,26 @@ export default function TagihanSiswaSheet({
           </p>
         </div>
 
-        <button
-          id="btn-add-tagihan"
-          onClick={() => setShowAddForm(true)}
-          className="mt-4 md:mt-0 px-4 py-2 bg-[#001f3f] hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center w-max"
-        >
-          <Plus className="w-4 h-4 mr-1.5 text-amber-400" />
-          Tambah Tunggakan Baru
-        </button>
+        <div className="flex items-center space-x-2 mt-4 md:mt-0">
+          {onClearTagihan && tagihanList.length > 0 && (
+            <button
+              onClick={() => setShowClearModal(true)}
+              className="px-3.5 py-2 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl shadow-sm transition-all flex items-center cursor-pointer"
+              title="Clear Histori Tunggakan"
+            >
+              <RotateCcw className="w-3.5 h-3.5 mr-1.5 text-rose-600" />
+              Clear Histori
+            </button>
+          )}
+          <button
+            id="btn-add-tagihan"
+            onClick={() => setShowAddForm(true)}
+            className="px-4 py-2 bg-[#001f3f] hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center w-max cursor-pointer"
+          >
+            <Plus className="w-4 h-4 mr-1.5 text-amber-400" />
+            Tambah Tunggakan Baru
+          </button>
+        </div>
       </div>
 
       {/* FILTER & STATS BAR */}
@@ -401,14 +424,26 @@ export default function TagihanSiswaSheet({
                 <button
                   id="btn-save-tagihan"
                   type="submit"
-                  className="flex-1 py-2 bg-[#001f3f] hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition"
+                  className="flex-1 py-2 bg-[#001f3f] hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition cursor-pointer"
                 >
                   Bebankan
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="py-2 px-3 border border-slate-200 hover:bg-slate-50 text-slate-500 font-bold text-xs rounded-xl transition"
+                  onClick={handleResetForm}
+                  className="py-2 px-2.5 border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-xl transition flex items-center cursor-pointer"
+                  title="Bersihkan Isian Form"
+                >
+                  <Eraser className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                  Clear Form
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleResetForm();
+                    setShowAddForm(false);
+                  }}
+                  className="py-2 px-3 border border-slate-200 hover:bg-slate-50 text-slate-500 font-bold text-xs rounded-xl transition cursor-pointer"
                 >
                   Batal
                 </button>
@@ -417,6 +452,75 @@ export default function TagihanSiswaSheet({
           </div>
         )}
       </div>
+
+      {/* CLEAR HISTORI MODAL */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scale-in">
+            <div className="bg-rose-700 text-white p-4 flex justify-between items-center">
+              <div className="flex items-center space-x-2">
+                <RotateCcw className="w-4 h-4 text-rose-200" />
+                <h3 className="font-bold text-xs uppercase font-mono tracking-wider">Bersihkan Histori Tunggakan</h3>
+              </div>
+              <button onClick={() => setShowClearModal(false)} className="text-white hover:text-rose-200 font-bold text-sm cursor-pointer">✕</button>
+            </div>
+            
+            <div className="p-5 space-y-4 font-sans text-xs">
+              <p className="text-slate-600">
+                Pilih metode pembersihan data tunggakan operasional siswa yang ingin Anda jalankan:
+              </p>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => {
+                    if (confirm("Apakah Anda yakin ingin menghapus semua tunggakan yang sudah berstatus LUNAS?")) {
+                      if (onClearTagihan) onClearTagihan(true);
+                      setShowClearModal(false);
+                    }
+                  }}
+                  className="w-full text-left p-3.5 border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/80 rounded-xl transition cursor-pointer group"
+                >
+                  <div className="font-bold text-emerald-900 flex items-center justify-between">
+                    <span>1. Bersihkan Tunggakan Lunas</span>
+                    <span className="text-[10px] bg-emerald-200 text-emerald-800 px-2 py-0.5 rounded font-mono uppercase">Rekomendasi</span>
+                  </div>
+                  <p className="text-[11px] text-emerald-700 mt-1">
+                    Menghapus hanya data tunggakan yang sudah LUNAS. Data yang Belum Lunas akan tetap tersimpan aman.
+                  </p>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (confirm("PERINGATAN: Seluruh histori tunggakan (termasuk yang belum lunas) akan dihapus secara permanen. Lanjutkan?")) {
+                      if (onClearTagihan) onClearTagihan(false);
+                      setShowClearModal(false);
+                    }
+                  }}
+                  className="w-full text-left p-3.5 border border-rose-200 bg-rose-50/60 hover:bg-rose-100/80 rounded-xl transition cursor-pointer group"
+                >
+                  <div className="font-bold text-rose-900 flex items-center justify-between">
+                    <span>2. Hapus SEMUA Histori Tunggakan</span>
+                    <span className="text-[10px] bg-rose-200 text-rose-800 px-2 py-0.5 rounded font-mono uppercase">Reset Total</span>
+                  </div>
+                  <p className="text-[11px] text-rose-700 mt-1">
+                    Menghapus seluruh daftar histori tunggakan siswa tanpa terkecuali (Reset total data tunggakan).
+                  </p>
+                </button>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowClearModal(false)}
+                  className="px-4 py-2 border border-slate-300 rounded-xl text-slate-600 font-bold hover:bg-slate-50 transition cursor-pointer"
+                >
+                  Batal
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
