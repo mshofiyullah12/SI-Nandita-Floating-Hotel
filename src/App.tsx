@@ -1473,37 +1473,44 @@ export default function App() {
   }, [activeSheet, currentUser, isLoggedIn, customTabs]);
 
   const handleLogoutLPK = async () => {
-    if (currentUser) {
-      setIsCloudSyncing(true);
-      try {
-        await saveLPKDataToFirestore({
-          schoolSettings,
-          siswa,
-          staff,
-          absensi,
-          sertifikat,
-          keuangan,
-          pembayaranLog,
-          payroll,
-          jobs,
-          userAccounts,
-          tagihan,
-          pendapatanLain,
-          pengeluaranKas,
-          utangPegawai,
-          jenisPendapatan,
-          katPengeluaran,
-          customTabs
-        });
-        await saveUserSessionToFirestore(currentUser.username, activeSheet);
-      } catch (e) {
-        console.error("Gagal menyimpan data akhir ke Firestore saat log out:", e);
-      } finally {
-        setIsCloudSyncing(false);
-      }
-    }
+    // Keep reference to currentUser and activeSheet for background sync
+    const userToSave = currentUser;
+    const sheetToSave = activeSheet;
+
+    // 1. Immediately clear the logged-in state so the UI transitions to the LoginView instantly
     setIsLoggedIn(false);
     setCurrentUser(null);
+    localStorage.removeItem("lpk_current_user");
+    localStorage.removeItem("lpk_active_sheet");
+
+    // 2. Perform the cloud Firestore persistence in the background without awaiting it
+    if (userToSave) {
+      saveLPKDataToFirestore({
+        schoolSettings,
+        siswa,
+        staff,
+        absensi,
+        sertifikat,
+        keuangan,
+        pembayaranLog,
+        payroll,
+        jobs,
+        userAccounts,
+        tagihan,
+        pendapatanLain,
+        pengeluaranKas,
+        utangPegawai,
+        jenisPendapatan,
+        katPengeluaran,
+        customTabs
+      }).catch(e => {
+        console.error("Gagal menyimpan data akhir ke Firestore saat log out:", e);
+      });
+
+      saveUserSessionToFirestore(userToSave.username, sheetToSave).catch(e => {
+        console.error("Gagal menyimpan sesi pengguna ke Firestore saat log out:", e);
+      });
+    }
   };
 
   if (!isLoggedIn) {
