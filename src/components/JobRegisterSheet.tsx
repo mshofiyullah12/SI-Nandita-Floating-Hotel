@@ -5,7 +5,8 @@
 
 import React, { useState } from "react";
 import { JobRegister, Siswa, ProgramStudi, JobLocationType, JobStatus } from "../types";
-import { Plus, Search, Trash2, Ship, Building, Briefcase, Globe } from "lucide-react";
+import { Plus, Search, Trash2, Ship, Building, Briefcase, Globe, Edit } from "lucide-react";
+import { formatRupiah } from "../utils";
 
 interface JobRegisterSheetProps {
   jobs: JobRegister[];
@@ -29,7 +30,15 @@ export default function JobRegisterSheet({
 
   // Form states
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingJobId, setEditingJobId] = useState<string | null>(null);
+
+  const [isExternal, setIsExternal] = useState(false);
   const [selectedSiswaId, setSelectedSiswaId] = useState("");
+  const [externalSiswaNama, setExternalSiswaNama] = useState("");
+  const [externalNoHp, setExternalNoHp] = useState("");
+  const [externalProgramStudi, setExternalProgramStudi] = useState("");
+
   const [companyName, setCompanyName] = useState("");
   const [positionName, setPositionName] = useState("");
   const [locationType, setLocationType] = useState<JobLocationType>(JobLocationType.LuarNegeri);
@@ -38,12 +47,18 @@ export default function JobRegisterSheet({
   const [regDate, setRegDate] = useState(new Date().toISOString().split("T")[0]);
   const [jobStatus, setJobStatus] = useState<JobStatus>(JobStatus.Daftar);
 
+  // Financial fields for placement
+  const [biayaPemberangkatan, setBiayaPemberangkatan] = useState<number>(0);
+  const [feePemberangkatanPT, setFeePemberangkatanPT] = useState<number>(0);
+  const [totalBayarExternal, setTotalBayarExternal] = useState<number>(0);
+
   // Filter
   const filteredJobs = jobs.filter(j => {
     const matchesSearch = 
       j.siswaNama.toLowerCase().includes(searchTerm.toLowerCase()) ||
       j.namaPerusahaan.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      j.posisi.toLowerCase().includes(searchTerm.toLowerCase());
+      j.posisi.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (j.programStudi && String(j.programStudi).toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesLocation = filterLocation === "All" || j.lokasiTipe === filterLocation;
     const matchesStatus = filterStatus === "All" || j.status === filterStatus;
@@ -51,37 +66,132 @@ export default function JobRegisterSheet({
     return matchesSearch && matchesLocation && matchesStatus;
   });
 
-  const handleSaveForm = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedSiswaId || !companyName || !positionName) {
-      alert("Nama Siswa, Perusahaan, dan Posisi wajib diisi!");
-      return;
-    }
-
-    const targetSiswa = siswa.find(s => s.id === selectedSiswaId);
-    if (!targetSiswa) return;
-
-    const newRecord: JobRegister = {
-      id: `JOB-${Date.now().toString().slice(-4)}`,
-      siswaId: selectedSiswaId,
-      siswaNama: targetSiswa.nama,
-      programStudi: targetSiswa.programStudi,
-      namaPerusahaan: companyName,
-      posisi: positionName,
-      lokasiTipe: locationType,
-      negaraKota: countryCity,
-      gajiPerkiraan: salaryEstimate,
-      tanggalDaftar: regDate,
-      status: jobStatus
-    };
-
-    onAddJobRegister(newRecord);
-    setIsFormOpen(false);
-
-    // Reset
+  const resetForm = () => {
     setSelectedSiswaId("");
     setCompanyName("");
     setPositionName("");
+    setLocationType(JobLocationType.LuarNegeri);
+    setCountryCity("Miami, USA");
+    setSalaryEstimate("USD 1,500 / month");
+    setRegDate(new Date().toISOString().split("T")[0]);
+    setJobStatus(JobStatus.Daftar);
+    setIsExternal(false);
+    setExternalSiswaNama("");
+    setExternalNoHp("");
+    setExternalProgramStudi("");
+    setBiayaPemberangkatan(0);
+    setFeePemberangkatanPT(0);
+    setTotalBayarExternal(0);
+    setIsEditMode(false);
+    setEditingJobId(null);
+  };
+
+  const handleOpenEdit = (job: JobRegister) => {
+    setEditingJobId(job.id);
+    setIsEditMode(true);
+    setIsExternal(!!job.isExternal);
+    
+    if (job.isExternal) {
+      setExternalSiswaNama(job.siswaNama);
+      setExternalNoHp(job.noHpExternal || "");
+      setExternalProgramStudi(String(job.programStudi));
+      setSelectedSiswaId("");
+    } else {
+      setSelectedSiswaId(job.siswaId);
+      setExternalSiswaNama("");
+      setExternalNoHp("");
+      setExternalProgramStudi("");
+    }
+
+    setCompanyName(job.namaPerusahaan);
+    setPositionName(job.posisi);
+    setLocationType(job.lokasiTipe);
+    setCountryCity(job.negaraKota);
+    setSalaryEstimate(job.gajiPerkiraan);
+    setRegDate(job.tanggalDaftar);
+    setJobStatus(job.status);
+    setBiayaPemberangkatan(job.biayaPemberangkatan || 0);
+    setFeePemberangkatanPT(job.feePemberangkatanPT || 0);
+    setTotalBayarExternal(job.totalBayarExternal || 0);
+    setIsFormOpen(true);
+  };
+
+  const handleSaveForm = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!isExternal && !selectedSiswaId) {
+      alert("Pilih siswa terlebih dahulu!");
+      return;
+    }
+    if (isExternal && !externalSiswaNama.trim()) {
+      alert("Nama siswa eksternal wajib diisi!");
+      return;
+    }
+    if (!companyName.trim() || !positionName.trim()) {
+      alert("Nama Perusahaan dan Posisi wajib diisi!");
+      return;
+    }
+
+    let targetSiswaNama = "";
+    let targetSiswaId = "";
+    let targetProgramStudi = "";
+
+    if (isExternal) {
+      targetSiswaNama = externalSiswaNama.trim();
+      targetSiswaId = `EXT-${Date.now().toString().slice(-4)}`;
+      targetProgramStudi = externalProgramStudi.trim() || "Eksternal LPK";
+    } else {
+      const targetSiswa = siswa.find(s => s.id === selectedSiswaId);
+      if (!targetSiswa) return;
+      targetSiswaNama = targetSiswa.nama;
+      targetSiswaId = selectedSiswaId;
+      targetProgramStudi = targetSiswa.programStudi;
+    }
+
+    if (isEditMode && editingJobId) {
+      const updatedRecord: JobRegister = {
+        id: editingJobId,
+        siswaId: isExternal ? (jobs.find(j => j.id === editingJobId)?.siswaId || targetSiswaId) : selectedSiswaId,
+        siswaNama: targetSiswaNama,
+        programStudi: targetProgramStudi,
+        namaPerusahaan: companyName,
+        posisi: positionName,
+        lokasiTipe: locationType,
+        negaraKota: countryCity,
+        gajiPerkiraan: salaryEstimate,
+        tanggalDaftar: regDate,
+        status: jobStatus,
+        isExternal,
+        noHpExternal: isExternal ? externalNoHp : undefined,
+        biayaPemberangkatan: isExternal ? Number(biayaPemberangkatan) : undefined,
+        feePemberangkatanPT: Number(feePemberangkatanPT),
+        totalBayarExternal: isExternal ? Number(totalBayarExternal) : undefined
+      };
+      onUpdateJobRegister(updatedRecord);
+    } else {
+      const newRecord: JobRegister = {
+        id: `JOB-${Date.now().toString().slice(-4)}`,
+        siswaId: targetSiswaId,
+        siswaNama: targetSiswaNama,
+        programStudi: targetProgramStudi,
+        namaPerusahaan: companyName,
+        posisi: positionName,
+        lokasiTipe: locationType,
+        negaraKota: countryCity,
+        gajiPerkiraan: salaryEstimate,
+        tanggalDaftar: regDate,
+        status: jobStatus,
+        isExternal,
+        noHpExternal: isExternal ? externalNoHp : undefined,
+        biayaPemberangkatan: isExternal ? Number(biayaPemberangkatan) : undefined,
+        feePemberangkatanPT: Number(feePemberangkatanPT),
+        totalBayarExternal: isExternal ? 0 : undefined
+      };
+      onAddJobRegister(newRecord);
+    }
+
+    setIsFormOpen(false);
+    resetForm();
   };
 
   const handleDirectStatusChange = (jobRecord: JobRegister, nextStatus: JobStatus) => {
@@ -116,7 +226,10 @@ export default function JobRegisterSheet({
         <div className="flex items-center justify-end">
           <button
             id="btn-add-job-reg"
-            onClick={() => setIsFormOpen(true)}
+            onClick={() => {
+              resetForm();
+              setIsFormOpen(true);
+            }}
             className="bg-sky-800 hover:bg-sky-950 text-white text-xs px-3 py-2 rounded font-bold shadow-sm flex items-center space-x-1"
           >
             <Plus className="w-4 h-4" />
@@ -129,18 +242,31 @@ export default function JobRegisterSheet({
       <div className="bg-gray-50 border-b border-gray-200 p-3 flex flex-wrap gap-3 items-center justify-between">
         <div className="flex items-center space-x-2">
           {selectedRowId && (
-            <button
-              id="btn-delete-job"
-              onClick={() => {
-                if (confirm("Hapus baris pendaftaran kerja ini?")) {
-                  onDeleteJobRegister(selectedRowId);
-                  setSelectedRowId(null);
-                }
-              }}
-              className="bg-red-50 hover:bg-red-100 text-red-700 text-xs px-3 py-1.5 rounded border border-red-200 font-semibold"
-            >
-              Hapus Baris Terpilih
-            </button>
+            <>
+              <button
+                id="btn-edit-job"
+                onClick={() => {
+                  const job = jobs.find(j => j.id === selectedRowId);
+                  if (job) handleOpenEdit(job);
+                }}
+                className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs px-3 py-1.5 rounded border border-blue-200 font-semibold flex items-center space-x-1"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Edit Data Terpilih</span>
+              </button>
+              <button
+                id="btn-delete-job"
+                onClick={() => {
+                  if (confirm("Hapus baris pendaftaran kerja ini?")) {
+                    onDeleteJobRegister(selectedRowId);
+                    setSelectedRowId(null);
+                  }
+                }}
+                className="bg-red-50 hover:bg-red-100 text-red-700 text-xs px-3 py-1.5 rounded border border-red-200 font-semibold"
+              >
+                Hapus Baris Terpilih
+              </button>
+            </>
           )}
         </div>
 
@@ -207,7 +333,9 @@ export default function JobRegisterSheet({
               <th className="px-3 py-1 border-r border-gray-300 w-44">Posisi Dilamar (D)</th>
               <th className="px-3 py-1 border-r border-gray-300 w-36">Tipe Lokasi (E)</th>
               <th className="px-3 py-1 border-r border-gray-300">Negara/Kota (F)</th>
-              <th className="px-3 py-1 border-r border-gray-300 w-36 text-right">Gaji Estimasi</th>
+              <th className="px-3 py-1 border-r border-gray-300 w-36 text-right">Biaya Proses / Berangkat</th>
+              <th className="px-3 py-1 border-r border-gray-300 w-36 text-right">Fee PT (DN/LN)</th>
+              <th className="px-3 py-1 border-r border-gray-300 w-36 text-right">Sisa Tagihan (Eksternal)</th>
               <th className="px-3 py-1 border-r border-gray-300 w-36 text-center">Status Perekrutan (G)</th>
               <th className="px-3 py-1 text-center w-28">Tanggal Daftar</th>
             </tr>
@@ -215,6 +343,7 @@ export default function JobRegisterSheet({
           <tbody className="text-xs font-mono text-gray-700">
             {filteredJobs.map((job, index) => {
               const isSelected = selectedRowId === job.id;
+              const sisaTagihan = job.isExternal ? (Number(job.biayaPemberangkatan || 0) - Number(job.totalBayarExternal || 0)) : 0;
               return (
                 <tr
                   key={job.id}
@@ -230,7 +359,18 @@ export default function JobRegisterSheet({
                     {job.id}
                   </td>
                   <td className="px-3 py-2 border-r border-gray-300 font-sans font-semibold text-gray-950">
-                    {job.siswaNama}
+                    <div className="flex flex-col">
+                      <span>{job.siswaNama}</span>
+                      {job.isExternal ? (
+                        <span className="inline-block bg-amber-100 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 w-max font-sans">
+                          Siswa Eksternal LPK {job.noHpExternal ? `(${job.noHpExternal})` : ""}
+                        </span>
+                      ) : (
+                        <span className="inline-block bg-sky-100 text-sky-800 text-[9px] font-bold px-1.5 py-0.5 rounded mt-0.5 w-max font-sans">
+                          Siswa Internal LPK
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-3 py-2 border-r border-gray-300 text-gray-500 font-sans">
                     {job.programStudi}
@@ -256,11 +396,30 @@ export default function JobRegisterSheet({
                   <td className="px-3 py-2 border-r border-gray-300 text-gray-500 font-sans">
                     {job.negaraKota}
                   </td>
-                  <td className="px-3 py-2 border-r border-gray-300 text-right font-mono text-gray-700">
-                    {job.gajiPerkiraan}
+                  <td className="px-3 py-2 border-r border-gray-300 text-right font-mono text-gray-800">
+                    {job.isExternal && job.biayaPemberangkatan !== undefined ? (
+                      <span className="font-bold text-teal-700">{formatRupiah(job.biayaPemberangkatan)}</span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 border-r border-gray-300 text-right font-mono text-gray-800">
+                    {job.feePemberangkatanPT !== undefined && job.feePemberangkatanPT > 0 ? (
+                      <span className="font-bold text-indigo-700">{formatRupiah(job.feePemberangkatanPT)}</span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 border-r border-gray-300 text-right font-mono">
+                    {job.isExternal ? (
+                      <span className={`font-bold ${sisaTagihan > 0 ? "text-red-600" : "text-green-600"}`}>
+                        {formatRupiah(sisaTagihan)}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
                   </td>
                   <td className="px-3 py-2 border-r border-gray-300 text-center">
-                    {/* Interactive Dropdown in table cell, typical for advanced spreadsheets */}
                     <select
                       value={job.status}
                       onChange={(e) => handleDirectStatusChange(job, e.target.value as JobStatus)}
@@ -300,30 +459,104 @@ export default function JobRegisterSheet({
         <div>LPK Nandita Career Center & Placement Registry</div>
       </div>
 
-      {/* Add Job Pendaftaran Modal */}
+      {/* Add / Edit Job Pendaftaran Modal */}
       {isFormOpen && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md animate-scale-in">
-            <div className="p-4 border-b border-gray-200 bg-sky-800 text-white rounded-t-lg flex justify-between items-center">
-              <h3 className="font-bold text-sm">Daftarkan Karir & Penempatan Siswa</h3>
-              <button onClick={() => setIsFormOpen(false)} className="text-white">✕</button>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-scale-in">
+            <div className="p-4 border-b border-gray-200 bg-sky-800 text-white rounded-t-lg flex justify-between items-center sticky top-0 z-10">
+              <h3 className="font-bold text-sm">
+                {isEditMode ? "Edit Pendaftaran & Penempatan Kerja" : "Daftarkan Karir & Penempatan Siswa"}
+              </h3>
+              <button onClick={() => { setIsFormOpen(false); resetForm(); }} className="text-white hover:text-gray-200">✕</button>
             </div>
             
             <form onSubmit={handleSaveForm} className="p-4 space-y-4">
+              {/* Tipe Siswa Selector */}
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Pilih Siswa *</label>
-                <select
-                  required
-                  value={selectedSiswaId}
-                  onChange={(e) => setSelectedSiswaId(e.target.value)}
-                  className="w-full border border-gray-300 bg-white rounded px-2.5 py-1.5 text-xs focus:outline-none"
-                >
-                  <option value="">-- Pilih Siswa --</option>
-                  {siswa.map(s => (
-                    <option key={s.id} value={s.id}>{s.nama} ({s.nis} - {s.programStudi})</option>
-                  ))}
-                </select>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Kategori Keanggotaan Siswa *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsExternal(false)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
+                      !isExternal 
+                        ? "bg-sky-100 border-sky-400 text-sky-800" 
+                        : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    Siswa Internal LPK
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsExternal(true)}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded border transition-colors ${
+                      isExternal 
+                        ? "bg-amber-100 border-amber-400 text-amber-800" 
+                        : "bg-white border-gray-300 text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    Siswa Eksternal LPK
+                  </button>
+                </div>
               </div>
+
+              {/* Dynamic Student fields */}
+              {!isExternal ? (
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Pilih Siswa Internal LPK *</label>
+                  <select
+                    required
+                    value={selectedSiswaId}
+                    onChange={(e) => setSelectedSiswaId(e.target.value)}
+                    className="w-full border border-gray-300 bg-white rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                    disabled={isEditMode}
+                  >
+                    <option value="">-- Pilih Siswa --</option>
+                    {siswa.map(s => (
+                      <option key={s.id} value={s.id}>{s.nama} ({s.nis} - {s.programStudi})</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="space-y-3 bg-amber-50/50 p-3 rounded border border-amber-200">
+                  <span className="text-[10px] font-bold text-amber-800 uppercase block">Informasi Siswa External</span>
+                  
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-1">Nama Lengkap Siswa Eksternal *</label>
+                    <input
+                      type="text"
+                      required
+                      value={externalSiswaNama}
+                      onChange={(e) => setExternalSiswaNama(e.target.value)}
+                      placeholder="e.g. Ahmad Suherman"
+                      className="w-full border border-gray-300 bg-white rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-600 mb-1">No. WhatsApp/HP</label>
+                      <input
+                        type="text"
+                        value={externalNoHp}
+                        onChange={(e) => setExternalNoHp(e.target.value)}
+                        placeholder="e.g. 08123456789"
+                        className="w-full border border-gray-300 bg-white rounded px-2 py-1 text-xs focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-600 mb-1">Program Studi / Minat</label>
+                      <input
+                        type="text"
+                        value={externalProgramStudi}
+                        onChange={(e) => setExternalProgramStudi(e.target.value)}
+                        placeholder="e.g. Perhotelan / Crew"
+                        className="w-full border border-gray-300 bg-white rounded px-2 py-1 text-xs focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-gray-700 mb-1">Nama Perusahaan Penerima / Kapal Pesiar *</label>
@@ -349,9 +582,10 @@ export default function JobRegisterSheet({
                 />
               </div>
 
+              {/* Placement Sector DN/LN and Career Status */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Tipe Lokasi</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Bagian Penempatan Kerja</label>
                   <select
                     value={locationType}
                     onChange={(e) => setLocationType(e.target.value as JobLocationType)}
@@ -363,7 +597,7 @@ export default function JobRegisterSheet({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-700 mb-1">Status Karir Awal</label>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Status Perekrutan</label>
                   <select
                     value={jobStatus}
                     onChange={(e) => setJobStatus(e.target.value as JobStatus)}
@@ -399,8 +633,53 @@ export default function JobRegisterSheet({
                 </div>
               </div>
 
+              {/* Financial Placements Fields (Sync with Keuangan & Tunggakan) */}
+              <div className="border border-teal-200 bg-teal-50/40 p-3 rounded space-y-3">
+                <span className="text-[10px] font-bold text-teal-800 uppercase block">Rincian Finansial Pemberangkatan</span>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-1">
+                      {isExternal ? "Biaya Pemberangkatan (Siswa) *" : "Biaya Pemberangkatan (Khusus Eksternal)"}
+                    </label>
+                    <input
+                      type="number"
+                      required={isExternal}
+                      disabled={!isExternal}
+                      value={biayaPemberangkatan || ""}
+                      onChange={(e) => setBiayaPemberangkatan(Number(e.target.value))}
+                      placeholder={isExternal ? "e.g. 25000000" : "Hanya siswa eksternal"}
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-xs disabled:bg-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-1">Fee Dari PT / Perusahaan (Rp)</label>
+                    <input
+                      type="number"
+                      value={feePemberangkatanPT || ""}
+                      onChange={(e) => setFeePemberangkatanPT(Number(e.target.value))}
+                      placeholder="e.g. 5000000"
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-xs"
+                    />
+                  </div>
+                </div>
+
+                {isExternal && isEditMode && (
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-600 mb-1">Jumlah Terbayar Oleh Siswa Eksternal (Rp)</label>
+                    <input
+                      type="number"
+                      value={totalBayarExternal || ""}
+                      onChange={(e) => setTotalBayarExternal(Number(e.target.value))}
+                      placeholder="e.g. 15000000"
+                      className="w-full border border-teal-300 rounded px-2 py-1 text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Tanggal Pendaftaran Lowongan</label>
+                <label className="block text-xs font-bold text-gray-700 mb-1">Tanggal Registrasi Lowongan</label>
                 <input
                   type="date"
                   value={regDate}
@@ -409,19 +688,19 @@ export default function JobRegisterSheet({
                 />
               </div>
 
-              <div className="pt-2 flex justify-end space-x-2">
+              <div className="pt-2 flex justify-end space-x-2 border-t border-gray-100">
                 <button
                   type="button"
-                  onClick={() => setIsFormOpen(false)}
+                  onClick={() => { setIsFormOpen(false); resetForm(); }}
                   className="px-4 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-100 text-gray-600"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs bg-sky-800 text-white rounded hover:bg-sky-900 font-semibold"
+                  className="px-4 py-1.5 text-xs bg-sky-800 text-white rounded hover:bg-sky-900 font-semibold shadow-sm"
                 >
-                  Daftarkan Siswa
+                  {isEditMode ? "Simpan Perubahan" : "Daftarkan Siswa"}
                 </button>
               </div>
             </form>

@@ -1,0 +1,51 @@
+{
+  "entities": {
+    "LPKState": {
+      "title": "LPK State Data",
+      "description": "Unified database backup state for all tables in LPK Nandita",
+      "type": "object",
+      "properties": {
+        "schoolSettings": { "type": "object" },
+        "siswa": { "type": "array" },
+        "staff": { "type": "array" },
+        "absensi": { "type": "array" },
+        "sertifikat": { "type": "array" },
+        "keuangan": { "type": "array" },
+        "pembayaranLog": { "type": "array" },
+        "payroll": { "type": "array" },
+        "jobs": { "type": "array" },
+        "userAccounts": { "type": "array" },
+        "tagihan": { "type": "array" },
+        "pendapatanLain": { "type": "array" },
+        "pengeluaranKas": { "type": "array" },
+        "utangPegawai": { "type": "array" },
+        "jenisPendapatan": { "type": "array" },
+        "katPengeluaran": { "type": "array" },
+        "customTabs": { "type": "array" },
+        "lastUpdated": { "type": "string" }
+      },
+      "required": ["schoolSettings", "siswa", "staff", "lastUpdated"]
+    },
+    "UserSession": {
+      "title": "User Active Session",
+      "description": "Active session data for a logged in user",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "activeSheet": { "type": "string" },
+        "lastActive": { "type": "string" }
+      },
+      "required": ["username", "activeSheet", "lastActive"]
+    }
+  },
+  "firestore": {
+    "/lpk_data/main": {
+      "schema": "LPKState",
+      "description": "Primary storage of entire LPK data"
+    },
+    "/sessions/{username}": {
+      "schema": "UserSession",
+      "description": "User specific session and active worksheet"
+    }
+  }
+}

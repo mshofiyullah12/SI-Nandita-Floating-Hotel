@@ -4,19 +4,21 @@
  */
 
 import React, { useState } from "react";
-import { KeuanganSiswa, PembayaranLog, Siswa, SchoolSettings } from "../types";
+import { KeuanganSiswa, PembayaranLog, Siswa, SchoolSettings, JobRegister, JobLocationType } from "../types";
 import { formatRupiah } from "../utils";
-import { Plus, Search, DollarSign, History, AlertCircle, Receipt, Trash2 } from "lucide-react";
+import { Plus, Search, DollarSign, History, AlertCircle, Receipt, Trash2, Check, ExternalLink, MessageSquare } from "lucide-react";
 import { formatPaymentNotification, formatReceivableNotification, WhatsAppNotification } from "../utils/whatsapp";
 
 interface KeuanganSheetProps {
   keuangan: KeuanganSiswa[];
   pembayaranLog: PembayaranLog[];
   siswa: Siswa[];
+  jobs?: JobRegister[];
   onAddPayment: (newPayment: PembayaranLog) => void;
   onDeletePayment: (paymentId: string) => void;
   onUpdateBiayaSiswa: (keuanganSiswaId: string, newTotalBiaya: number) => void;
   onAddKeuanganAccount: (newAccount: KeuanganSiswa) => void;
+  onUpdateJobRegister?: (updatedJob: JobRegister) => void;
   onTriggerWhatsApp?: (notif: WhatsAppNotification) => void;
   schoolSettings?: SchoolSettings;
 }
@@ -25,10 +27,12 @@ export default function KeuanganSheet({
   keuangan,
   pembayaranLog,
   siswa,
+  jobs = [],
   onAddPayment,
   onDeletePayment,
   onUpdateBiayaSiswa,
   onAddKeuanganAccount,
+  onUpdateJobRegister,
   onTriggerWhatsApp,
   schoolSettings
 }: KeuanganSheetProps) {
@@ -55,10 +59,31 @@ export default function KeuanganSheet({
   // Biaya Update State
   const [targetBiayaValue, setTargetBiayaValue] = useState<number>(0);
 
-  // Filters
+  // External Student and PT Placement States
+  const [showExternal, setShowExternal] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState<"internal" | "external">("internal");
+  const [activeExternalJob, setActiveExternalJob] = useState<JobRegister | null>(null);
+  const [externalPayAmount, setExternalPayAmount] = useState<number>(0);
+  const [externalPayNotes, setExternalPayNotes] = useState("Pembayaran Biaya Pemberangkatan");
+  const [externalPayDate, setExternalPayDate] = useState(new Date().toISOString().split("T")[0]);
+  const [isExternalPaymentFormOpen, setIsExternalPaymentFormOpen] = useState(false);
+
+  // Filters for Internal
   const filteredKeuangan = keuangan.filter(k => {
     const matchesSearch = k.siswaNama.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "All" || k.statusBayar === filterStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  // Filters and metrics for External
+  const externalJobs = (jobs || []).filter(j => j.isExternal);
+  const filteredExternalJobs = externalJobs.filter(j => {
+    const matchesSearch = 
+      j.siswaNama.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      j.namaPerusahaan.toLowerCase().includes(searchTerm.toLowerCase());
+    const isLunas = (Number(j.biayaPemberangkatan || 0) - Number(j.totalBayarExternal || 0)) <= 0;
+    const statusBayar = isLunas ? "Lunas" : (Number(j.totalBayarExternal || 0) > 0 ? "Belum Lunas" : "Belum Bayar");
+    const matchesStatus = filterStatus === "All" || statusBayar === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -66,6 +91,14 @@ export default function KeuanganSheet({
   const totalRencana = keuangan.reduce((acc, k) => acc + k.totalBiaya, 0);
   const totalRealisasi = keuangan.reduce((acc, k) => acc + k.totalBayar, 0);
   const totalPiutangActive = keuangan.reduce((acc, k) => acc + k.piutang, 0);
+
+  const totalRencanaExternal = externalJobs.reduce((acc, j) => acc + (j.biayaPemberangkatan || 0), 0);
+  const totalRealisasiExternal = externalJobs.reduce((acc, j) => acc + (j.totalBayarExternal || 0), 0);
+  const totalPiutangExternal = totalRencanaExternal - totalRealisasiExternal;
+
+  const totalFeePTDalamNegeri = (jobs || []).filter(j => j.lokasiTipe === JobLocationType.DalamNegeri).reduce((acc, j) => acc + (j.feePemberangkatanPT || 0), 0);
+  const totalFeePTLuarNegeri = (jobs || []).filter(j => j.lokasiTipe === JobLocationType.LuarNegeri).reduce((acc, j) => acc + (j.feePemberangkatanPT || 0), 0);
+  const totalFeePTAll = totalFeePTDalamNegeri + totalFeePTLuarNegeri;
 
   // Handler: Add Payment log
   const handleRecordPaymentSubmit = (e: React.FormEvent) => {
@@ -192,236 +225,580 @@ export default function KeuanganSheet({
     setNewAccSiswaId("");
   };
 
+  const handleRecordExternalPaymentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeExternalJob || !onUpdateJobRegister) return;
+
+    if (externalPayAmount <= 0) {
+      alert("Jumlah pembayaran harus lebih besar dari Rp 0!");
+      return;
+    }
+
+    const remaining = (activeExternalJob.biayaPemberangkatan || 0) - (activeExternalJob.totalBayarExternal || 0);
+    if (externalPayAmount > remaining) {
+      if (!confirm(`Jumlah pembayaran (${formatRupiah(externalPayAmount)}) melebihi sisa tunggakan (${formatRupiah(remaining)}). Tetap lanjutkan?`)) {
+        return;
+      }
+    }
+
+    const nextPaid = (activeExternalJob.totalBayarExternal || 0) + externalPayAmount;
+    const updatedJob: JobRegister = {
+      ...activeExternalJob,
+      totalBayarExternal: nextPaid
+    };
+
+    onUpdateJobRegister(updatedJob);
+    
+    // Trigger WA notification for external student if onTriggerWhatsApp is defined
+    if (onTriggerWhatsApp) {
+      const currentRemainingPiutang = Math.max((updatedJob.biayaPemberangkatan || 0) - nextPaid, 0);
+      
+      const msg = formatPaymentNotification(
+        updatedJob.siswaNama,
+        externalPayAmount,
+        externalPayNotes,
+        externalPayDate,
+        currentRemainingPiutang,
+        schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
+        schoolSettings?.waTemplatePembayaran
+      );
+
+      onTriggerWhatsApp({
+        recipientName: updatedJob.siswaNama,
+        phone: updatedJob.noHpExternal || "",
+        category: "Pembayaran Siswa",
+        message: msg
+      });
+    }
+
+    setIsExternalPaymentFormOpen(false);
+    setActiveExternalJob(null);
+  };
+
   return (
     <div className="flex flex-col h-full bg-white text-gray-800" id="keuangan-sheet-container">
       {/* KPI ribbon bar in financial sheet */}
-      <div className="bg-teal-50 border-b border-gray-200 p-3 grid grid-cols-1 md:grid-cols-4 gap-3 shadow-inner">
-        <div className="bg-white border border-teal-200 p-2.5 rounded shadow-sm">
-          <span className="text-[10px] font-mono text-gray-500 uppercase block font-bold">Rencana Penerimaan Biaya</span>
-          <span className="text-sm font-mono font-bold text-gray-900 mt-1 block">{formatRupiah(totalRencana)}</span>
+      <div className="bg-teal-50 border-b border-gray-200 p-3 space-y-3 shadow-inner">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="bg-white border border-teal-200 p-2.5 rounded shadow-sm">
+            <span className="text-[10px] font-mono text-gray-500 uppercase block font-bold">Rencana Biaya (Internal)</span>
+            <span className="text-sm font-mono font-bold text-gray-900 mt-1 block">{formatRupiah(totalRencana)}</span>
+          </div>
+          <div className="bg-white border border-emerald-200 p-2.5 rounded shadow-sm">
+            <span className="text-[10px] font-mono text-emerald-700 uppercase block font-bold">Dana Masuk (Internal)</span>
+            <span className="text-sm font-mono font-bold text-green-700 mt-1 block">{formatRupiah(totalRealisasi)}</span>
+          </div>
+          <div className="bg-white border border-red-200 p-2.5 rounded shadow-sm">
+            <span className="text-[10px] font-mono text-red-700 uppercase block font-bold">Tunggakan Siswa (Internal)</span>
+            <span className="text-sm font-mono font-bold text-red-600 mt-1 block">{formatRupiah(totalPiutangActive)}</span>
+          </div>
+          {showExternal ? (
+            <div className="bg-gradient-to-br from-indigo-50 to-sky-50 border border-indigo-200 p-2.5 rounded shadow-sm">
+              <span className="text-[10px] font-mono text-indigo-700 uppercase block font-bold">Total Fee Dari PT (DN / LN)</span>
+              <span className="text-sm font-mono font-bold text-indigo-800 mt-1 block">{formatRupiah(totalFeePTAll)}</span>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center p-1 bg-white border border-dashed border-teal-300 rounded shadow-sm">
+              <button
+                id="btn-create-fin-account"
+                onClick={() => setIsAccountFormOpen(true)}
+                className="bg-teal-800 hover:bg-teal-900 text-white text-xs px-4 py-2 rounded font-bold shadow-sm flex items-center space-x-1.5 w-full justify-center"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Buka Rekening Siswa</span>
+              </button>
+            </div>
+          )}
         </div>
-        <div className="bg-white border border-emerald-200 p-2.5 rounded shadow-sm">
-          <span className="text-[10px] font-mono text-emerald-700 uppercase block font-bold">Dana Masuk (Realisasi)</span>
-          <span className="text-sm font-mono font-bold text-green-700 mt-1 block">{formatRupiah(totalRealisasi)}</span>
-        </div>
-        <div className="bg-white border border-red-200 p-2.5 rounded shadow-sm">
-          <span className="text-[10px] font-mono text-red-700 uppercase block font-bold">Total Tunggakan Siswa Aktif</span>
-          <span className="text-sm font-mono font-bold text-red-600 mt-1 block">{formatRupiah(totalPiutangActive)}</span>
-        </div>
-        <div className="flex items-center justify-end space-x-2">
-          <button
-            id="btn-create-fin-account"
-            onClick={() => setIsAccountFormOpen(true)}
-            className="bg-teal-800 hover:bg-teal-900 text-white text-xs px-3 py-2 rounded font-bold shadow-sm flex items-center space-x-1"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Buka Rekening Siswa</span>
-          </button>
+
+        {showExternal && (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-1">
+            <div className="bg-amber-50/50 border border-amber-200 p-2.5 rounded shadow-sm">
+              <span className="text-[10px] font-mono text-amber-800 uppercase block font-bold">Rencana Biaya (Eksternal)</span>
+              <span className="text-sm font-mono font-bold text-amber-900 mt-1 block">{formatRupiah(totalRencanaExternal)}</span>
+            </div>
+            <div className="bg-white border border-amber-200 p-2.5 rounded shadow-sm">
+              <span className="text-[10px] font-mono text-amber-700 uppercase block font-bold">Dana Masuk (Eksternal)</span>
+              <span className="text-sm font-mono font-bold text-green-700 mt-1 block">{formatRupiah(totalRealisasiExternal)}</span>
+            </div>
+            <div className="bg-white border border-red-200 p-2.5 rounded shadow-sm">
+              <span className="text-[10px] font-mono text-red-700 uppercase block font-bold">Tunggakan Siswa (Eksternal)</span>
+              <span className="text-sm font-mono font-bold text-red-600 mt-1 block">{formatRupiah(totalPiutangExternal)}</span>
+            </div>
+            <div className="flex items-center justify-end space-x-2">
+              {activeTab === "internal" ? (
+                <button
+                  id="btn-create-fin-account"
+                  onClick={() => setIsAccountFormOpen(true)}
+                  className="bg-teal-800 hover:bg-teal-900 text-white text-xs px-3 py-2 rounded font-bold shadow-sm flex items-center space-x-1 w-full md:w-auto justify-center"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Buka Rekening Siswa</span>
+                </button>
+              ) : (
+                <div className="text-[11px] text-gray-500 italic bg-amber-50 px-3 py-2 rounded border border-amber-200 w-full text-center font-sans">
+                  Mencakup rincian biaya penempatan & keberangkatan
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tab Switcher & Toggle Filter */}
+        <div className="flex items-center justify-between border-b border-gray-200 pt-2 flex-wrap gap-2">
+          <div className="flex space-x-1">
+            <button
+              onClick={() => {
+                setActiveTab("internal");
+                setFilterStatus("All");
+              }}
+              className={`px-4 py-2 text-xs font-bold rounded-t-lg border-t border-x transition-all ${
+                activeTab === "internal"
+                  ? "bg-white border-gray-300 text-teal-800 border-b-2 border-b-white -mb-[1px]"
+                  : "bg-gray-100/60 border-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+              }`}
+            >
+              Siswa Internal (Spp & Biaya Pendidikan LPK)
+            </button>
+            {showExternal && (
+              <button
+                onClick={() => {
+                  setActiveTab("external");
+                  setFilterStatus("All");
+                }}
+                className={`px-4 py-2 text-xs font-bold rounded-t-lg border-t border-x transition-all ${
+                  activeTab === "external"
+                    ? "bg-white border-gray-300 text-amber-800 border-b-2 border-b-white -mb-[1px]"
+                    : "bg-gray-100/60 border-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                }`}
+              >
+                Siswa Eksternal & Fee PT (Biaya Proses & Penempatan)
+              </button>
+            )}
+          </div>
+          <div className="flex items-center space-x-2 pb-2 pr-1">
+            <label className="inline-flex items-center space-x-2 text-xs font-bold text-teal-900 cursor-pointer bg-white hover:bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-200 shadow-xs select-none transition-colors">
+              <input
+                type="checkbox"
+                checked={showExternal}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setShowExternal(checked);
+                  if (!checked && activeTab === "external") {
+                    setActiveTab("internal");
+                  }
+                }}
+                className="rounded border-teal-300 text-teal-600 focus:ring-teal-500 w-3.5 h-3.5"
+              />
+              <span className="font-sans">Tampilkan Transaksi Siswa Eksternal</span>
+            </label>
+          </div>
         </div>
       </div>
 
-      {/* Excel Tool Bar */}
-      <div className="bg-gray-50 border-b border-gray-200 p-3 flex flex-wrap gap-3 items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <button
-            id="btn-edit-biaya"
-            disabled={!selectedRowId}
-            onClick={() => {
-              const selected = keuangan.find(k => k.id === selectedRowId);
-              if (selected) {
-                setActiveAccountDetails(selected);
-                setTargetBiayaValue(selected.totalBiaya);
-                setIsBiayaFormOpen(true);
-              }
-            }}
-            className={`flex items-center space-x-1.5 text-xs px-3 py-1.5 rounded font-semibold ${
-              selectedRowId 
-                ? "bg-gray-200 hover:bg-gray-300 text-gray-700 cursor-pointer" 
-                : "bg-gray-100 text-gray-400 cursor-not-allowed"
-            }`}
-          >
-            <span>Atur Nominal Biaya Pendidikan (A)</span>
-          </button>
+      {activeTab === "internal" ? (
+        <>
+          {/* Excel Tool Bar */}
+          <div className="bg-gray-50 border-b border-gray-200 p-3 flex flex-wrap gap-3 items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <button
+                id="btn-edit-biaya"
+                disabled={!selectedRowId}
+                onClick={() => {
+                  const selected = keuangan.find(k => k.id === selectedRowId);
+                  if (selected) {
+                    setActiveAccountDetails(selected);
+                    setTargetBiayaValue(selected.totalBiaya);
+                    setIsBiayaFormOpen(true);
+                  }
+                }}
+                className={`flex items-center space-x-1.5 text-xs px-3 py-1.5 rounded font-semibold ${
+                  selectedRowId 
+                    ? "bg-gray-200 hover:bg-gray-300 text-gray-700 cursor-pointer" 
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                <span>Atur Nominal Biaya Pendidikan (A)</span>
+              </button>
 
-          <button
-            id="btn-open-payment-log"
-            disabled={!selectedRowId}
-            onClick={() => {
-              const selected = keuangan.find(k => k.id === selectedRowId);
-              if (selected) {
-                setActiveAccountDetails(selected);
-              }
-            }}
-            className={`flex items-center space-x-1.5 text-xs px-3 py-1.5 rounded font-bold ${
-              selectedRowId 
-                ? "bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-sm" 
-                : "bg-gray-100 text-gray-400 cursor-not-allowed"
-            }`}
-          >
-            <DollarSign className="w-3.5 h-3.5" />
-            <span>Rincian & Bayar Tunggakan Siswa</span>
-          </button>
-        </div>
+              <button
+                id="btn-open-payment-log"
+                disabled={!selectedRowId}
+                onClick={() => {
+                  const selected = keuangan.find(k => k.id === selectedRowId);
+                  if (selected) {
+                    setActiveAccountDetails(selected);
+                  }
+                }}
+                className={`flex items-center space-x-1.5 text-xs px-3 py-1.5 rounded font-bold ${
+                  selectedRowId 
+                    ? "bg-emerald-700 hover:bg-emerald-800 text-white cursor-pointer shadow-sm" 
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>Rincian & Bayar Tunggakan Siswa</span>
+              </button>
+            </div>
 
-        {/* Filters */}
-        <div className="flex items-center space-x-2">
-          <div className="relative">
-            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
-            <input
-              type="text"
-              placeholder="Cari nama siswa..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 pr-3 py-1.5 border border-gray-300 rounded text-xs w-48 focus:outline-none bg-white"
-            />
+            {/* Filters */}
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Cari nama siswa..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 border border-gray-300 rounded text-xs w-48 focus:outline-none bg-white"
+                />
+              </div>
+
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border border-gray-300 rounded text-xs px-2 py-1.5 focus:outline-none bg-white"
+              >
+                <option value="All">Semua Status Bayar</option>
+                <option value="Lunas">Lunas</option>
+                <option value="Belum Lunas">Belum Lunas</option>
+                <option value="Belum Bayar">Belum Bayar</option>
+              </select>
+            </div>
           </div>
 
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="border border-gray-300 rounded text-xs px-2 py-1.5 focus:outline-none bg-white"
-          >
-            <option value="All">Semua Status Bayar</option>
-            <option value="Lunas">Lunas</option>
-            <option value="Belum Lunas">Belum Lunas</option>
-            <option value="Belum Bayar">Belum Bayar</option>
-          </select>
-        </div>
-      </div>
+          {/* Spreadsheet Formula Bar */}
+          <div className="bg-white border-b border-gray-300 px-4 py-1.5 flex items-center space-x-2 text-xs font-mono text-gray-600">
+            <div className="bg-gray-100 border border-gray-300 px-2 py-0.5 rounded font-bold text-gray-700 min-w-[50px] text-center">
+              {selectedRowId ? `KEU-${keuangan.findIndex(k => k.id === selectedRowId) + 1}` : "A1"}
+            </div>
+            <div className="text-gray-400 font-bold">fx</div>
+            <div className="border border-gray-300 px-2 py-0.5 rounded flex-grow bg-gray-50 truncate min-h-[22px]">
+              {selectedRowId 
+                ? `=REC_TAGIHAN(TOTAL_BIAYA: ${keuangan.find(k => k.id === selectedRowId)?.totalBiaya}, TOTAL_BAYAR: ${keuangan.find(k => k.id === selectedRowId)?.totalBayar}, SISA_TAGIHAN: [Formula: B${keuangan.findIndex(k => k.id === selectedRowId) + 2} - C${keuangan.findIndex(k => k.id === selectedRowId) + 2}] = ${keuangan.find(k => k.id === selectedRowId)?.piutang})`
+                : "Formula Bar: Formula otomatis menghitung [Sisa Tagihan = Total Biaya - Total Bayar] secara dinamis."
+              }
+            </div>
+          </div>
 
-      {/* Spreadsheet Formula Bar */}
-      <div className="bg-white border-b border-gray-300 px-4 py-1.5 flex items-center space-x-2 text-xs font-mono text-gray-600">
-        <div className="bg-gray-100 border border-gray-300 px-2 py-0.5 rounded font-bold text-gray-700 min-w-[50px] text-center">
-          {selectedRowId ? `KEU-${keuangan.findIndex(k => k.id === selectedRowId) + 1}` : "A1"}
-        </div>
-        <div className="text-gray-400 font-bold">fx</div>
-        <div className="border border-gray-300 px-2 py-0.5 rounded flex-grow bg-gray-50 truncate min-h-[22px]">
-          {selectedRowId 
-            ? `=REC_TAGIHAN(TOTAL_BIAYA: ${keuangan.find(k => k.id === selectedRowId)?.totalBiaya}, TOTAL_BAYAR: ${keuangan.find(k => k.id === selectedRowId)?.totalBayar}, SISA_TAGIHAN: [Formula: B${keuangan.findIndex(k => k.id === selectedRowId) + 2} - C${keuangan.findIndex(k => k.id === selectedRowId) + 2}] = ${keuangan.find(k => k.id === selectedRowId)?.piutang})`
-            : "Formula Bar: Formula otomatis menghitung [Sisa Tagihan = Total Biaya - Total Bayar] secara dinamis."
-          }
-        </div>
-      </div>
-
-      {/* Table Ledger view */}
-      <div className="flex-grow overflow-auto">
-        <table className="w-full text-left border-collapse min-w-[900px]">
-          <thead>
-            <tr className="bg-gray-100 border-b border-gray-300 text-xs font-mono text-gray-500">
-              <th className="w-10 text-center border-r border-gray-300 select-none py-1">#</th>
-              <th className="px-3 py-1 border-r border-gray-300 w-32">ID Akun</th>
-              <th className="px-3 py-1 border-r border-gray-300">Nama Siswa / Pembayar (A)</th>
-              <th className="px-3 py-1 border-r border-gray-300 w-48 text-right">Total Biaya Pendidikan (B)</th>
-              <th className="px-3 py-1 border-r border-gray-300 w-44 text-right">Jumlah Terbayar (C)</th>
-              <th className="px-3 py-1 border-r border-gray-300 w-44 text-right text-red-600">Sisa Tunggakan Siswa (D)</th>
-              <th className="px-3 py-1 border-r border-gray-300 w-32 text-center">Tgl Bayar Terakhir</th>
-              <th className="px-3 py-1 border-r border-gray-300 w-32 text-center">Status (E)</th>
-              <th className="px-3 py-1 text-center w-28">Operasi</th>
-            </tr>
-          </thead>
-          <tbody className="text-xs font-mono">
-            {filteredKeuangan.map((acc, index) => {
-              const isSelected = selectedRowId === acc.id;
-              return (
-                <tr
-                  key={acc.id}
-                  onClick={() => setSelectedRowId(acc.id)}
-                  onDoubleClick={() => {
-                    setActiveAccountDetails(acc);
-                  }}
-                  className={`border-b border-gray-200 cursor-pointer select-none hover:bg-teal-50/20 ${
-                    isSelected ? "bg-teal-100/60 border-2 border-teal-600" : ""
-                  }`}
-                >
-                  <td className="w-10 text-center bg-gray-50 border-r border-gray-300 text-[10px] text-gray-400 font-mono py-2.5">
-                    {index + 1}
-                  </td>
-                  <td className="px-3 py-2 border-r border-gray-300 text-gray-500 font-bold">
-                    {acc.id}
-                  </td>
-                  <td className="px-3 py-2 border-r border-gray-300 font-sans font-semibold text-gray-950">
-                    {acc.siswaNama}
-                  </td>
-                  <td className="px-3 py-2 border-r border-gray-300 text-right font-semibold text-gray-700">
-                    {formatRupiah(acc.totalBiaya)}
-                  </td>
-                  <td className="px-3 py-2 border-r border-gray-300 text-right font-semibold text-emerald-700">
-                    {formatRupiah(acc.totalBayar)}
-                  </td>
-                  <td className={`px-3 py-2 border-r border-gray-300 text-right font-bold ${
-                    acc.piutang > 0 ? "text-red-600 bg-red-50/30" : "text-gray-500"
-                  }`}>
-                    {formatRupiah(acc.piutang)}
-                  </td>
-                  <td className="px-3 py-2 border-r border-gray-300 text-center text-gray-500">
-                    {acc.pembayaranTerakhir}
-                  </td>
-                  <td className="px-3 py-2 border-r border-gray-300 text-center">
-                    <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold ${
-                      acc.statusBayar === "Lunas" ? "bg-green-100 text-green-800" :
-                      acc.statusBayar === "Belum Lunas" ? "bg-amber-100 text-amber-800" :
-                      "bg-red-100 text-red-800"
-                    }`}>
-                      {acc.statusBayar}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2 text-center space-x-1">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
+          {/* Table Ledger view */}
+          <div className="flex-grow overflow-auto bg-gray-50/50">
+            <table className="w-full text-left border-collapse min-w-[900px]">
+              <thead>
+                <tr className="bg-gray-100 border-b border-gray-300 text-xs font-mono text-gray-500">
+                  <th className="w-10 text-center border-r border-gray-300 select-none py-1">#</th>
+                  <th className="px-3 py-1 border-r border-gray-300 w-32">ID Akun</th>
+                  <th className="px-3 py-1 border-r border-gray-300">Nama Siswa / Pembayar (A)</th>
+                  <th className="px-3 py-1 border-r border-gray-300 w-48 text-right">Total Biaya Pendidikan (B)</th>
+                  <th className="px-3 py-1 border-r border-gray-300 w-44 text-right">Jumlah Terbayar (C)</th>
+                  <th className="px-3 py-1 border-r border-gray-300 w-44 text-right text-red-600">Sisa Tunggakan Siswa (D)</th>
+                  <th className="px-3 py-1 border-r border-gray-300 w-32 text-center">Tgl Bayar Terakhir</th>
+                  <th className="px-3 py-1 border-r border-gray-300 w-32 text-center">Status (E)</th>
+                  <th className="px-3 py-1 text-center w-28">Operasi</th>
+                </tr>
+              </thead>
+              <tbody className="text-xs font-mono">
+                {filteredKeuangan.map((acc, index) => {
+                  const isSelected = selectedRowId === acc.id;
+                  return (
+                    <tr
+                      key={acc.id}
+                      onClick={() => setSelectedRowId(acc.id)}
+                      onDoubleClick={() => {
                         setActiveAccountDetails(acc);
                       }}
-                      className="px-2 py-0.5 text-[10px] bg-teal-800 text-white font-sans font-semibold rounded hover:bg-teal-950 cursor-pointer"
+                      className={`border-b border-gray-200 cursor-pointer select-none hover:bg-teal-50/20 ${
+                        isSelected ? "bg-teal-100/60 border-2 border-teal-600" : ""
+                      }`}
                     >
-                      Bayar
-                    </button>
-                    {acc.piutang > 0 && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const targetSiswa = siswa.find(s => s.id === acc.siswaId);
-                          const phone = targetSiswa ? targetSiswa.noHp : "";
-                          const msg = formatReceivableNotification(
-                            acc.siswaNama,
-                            acc.totalBiaya,
-                            acc.piutang,
-                            schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
-                            schoolSettings?.waTemplateTagihanSiswa
-                          );
-                          if (onTriggerWhatsApp) {
-                            onTriggerWhatsApp({
-                              recipientName: acc.siswaNama,
-                              phone,
-                              category: "Tunggakan Siswa",
-                              message: msg
-                            });
-                          }
-                        }}
-                        className="px-2 py-0.5 text-[10px] bg-emerald-600 text-white font-sans font-semibold rounded hover:bg-emerald-700 cursor-pointer inline-flex items-center"
-                        title="Kirim Tunggakan via WhatsApp"
-                      >
-                        WA Tunggakan
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-            {filteredKeuangan.length === 0 && (
-              <tr>
-                <td colSpan={9} className="text-center py-10 text-gray-400 bg-gray-50">
-                  Tidak ada baris akun keuangan ditemukan.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+                      <td className="w-10 text-center bg-gray-50 border-r border-gray-300 text-[10px] text-gray-400 font-mono py-2.5">
+                        {index + 1}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-300 text-gray-500 font-bold">
+                        {acc.id}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-300 font-sans font-semibold text-gray-950">
+                        {acc.siswaNama}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-300 text-right font-semibold text-gray-700">
+                        {formatRupiah(acc.totalBiaya)}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-300 text-right font-semibold text-emerald-700">
+                        {formatRupiah(acc.totalBayar)}
+                      </td>
+                      <td className={`px-3 py-2 border-r border-gray-300 text-right font-bold ${
+                        acc.piutang > 0 ? "text-red-600 bg-red-50/30" : "text-gray-500"
+                      }`}>
+                        {formatRupiah(acc.piutang)}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-300 text-center text-gray-500">
+                        {acc.pembayaranTerakhir}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-300 text-center">
+                        <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-bold ${
+                          acc.statusBayar === "Lunas" ? "bg-green-100 text-green-800" :
+                          acc.statusBayar === "Belum Lunas" ? "bg-amber-100 text-amber-800" :
+                          "bg-red-100 text-red-800"
+                        }`}>
+                          {acc.statusBayar}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-center space-x-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveAccountDetails(acc);
+                          }}
+                          className="px-2 py-0.5 text-[10px] bg-teal-800 text-white font-sans font-semibold rounded hover:bg-teal-950 cursor-pointer"
+                        >
+                          Bayar
+                        </button>
+                        {acc.piutang > 0 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const targetSiswa = siswa.find(s => s.id === acc.siswaId);
+                              const phone = targetSiswa ? targetSiswa.noHp : "";
+                              const msg = formatReceivableNotification(
+                                acc.siswaNama,
+                                acc.totalBiaya,
+                                acc.piutang,
+                                schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
+                                schoolSettings?.waTemplateTagihanSiswa
+                              );
+                              if (onTriggerWhatsApp) {
+                                onTriggerWhatsApp({
+                                  recipientName: acc.siswaNama,
+                                  phone,
+                                  category: "Tunggakan Siswa",
+                                  message: msg
+                                });
+                              }
+                            }}
+                            className="px-2 py-0.5 text-[10px] bg-emerald-600 text-white font-sans font-semibold rounded hover:bg-emerald-700 cursor-pointer inline-flex items-center"
+                            title="Kirim Tunggakan via WhatsApp"
+                          >
+                            WA Tunggakan
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredKeuangan.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="text-center py-10 text-gray-400 bg-gray-50">
+                      Tidak ada baris akun keuangan ditemukan.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-      <div className="bg-gray-100 border-t border-gray-300 px-4 py-2 flex items-center justify-between text-xs font-mono text-gray-500">
-        <div>Total Data Keuangan: {filteredKeuangan.length} Siswa</div>
-        <div>LPK Nandita Accounting General Ledger</div>
-      </div>
+          <div className="bg-gray-100 border-t border-gray-300 px-4 py-2 flex items-center justify-between text-xs font-mono text-gray-500">
+            <div>Total Data Keuangan: {filteredKeuangan.length} Siswa</div>
+            <div>LPK Nandita Accounting General Ledger</div>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* External Placements Tool Bar */}
+          <div className="bg-gray-50 border-b border-gray-200 p-3 flex flex-wrap gap-3 items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <button
+                id="btn-pay-external"
+                disabled={!selectedRowId || !jobs.some(j => j.id === selectedRowId && j.isExternal)}
+                onClick={() => {
+                  const job = jobs.find(j => j.id === selectedRowId && j.isExternal);
+                  if (job) {
+                    setActiveExternalJob(job);
+                    setExternalPayAmount(Number(job.biayaPemberangkatan || 0) - Number(job.totalBayarExternal || 0));
+                    setIsExternalPaymentFormOpen(true);
+                  }
+                }}
+                className={`flex items-center space-x-1.5 text-xs px-3 py-1.5 rounded font-bold ${
+                  selectedRowId && jobs.some(j => j.id === selectedRowId && j.isExternal)
+                    ? "bg-amber-600 hover:bg-amber-700 text-white cursor-pointer shadow-sm animate-pulse"
+                    : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                }`}
+              >
+                <DollarSign className="w-3.5 h-3.5" />
+                <span>Input Pembayaran Siswa Eksternal (B)</span>
+              </button>
+            </div>
+
+            {/* Filters */}
+            <div className="flex items-center space-x-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Cari siswa / perusah..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 border border-gray-300 rounded text-xs w-48 focus:outline-none bg-white"
+                />
+              </div>
+
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="border border-gray-300 rounded text-xs px-2 py-1.5 focus:outline-none bg-white"
+              >
+                <option value="All">Semua Status Bayar</option>
+                <option value="Lunas">Lunas</option>
+                <option value="Belum Lunas">Belum Lunas</option>
+                <option value="Belum Bayar">Belum Bayar</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Spreadsheet Formula Bar for External Placements */}
+          <div className="bg-white border-b border-gray-300 px-4 py-1.5 flex items-center space-x-2 text-xs font-mono text-gray-600">
+            <div className="bg-amber-100 border border-amber-300 px-2 py-0.5 rounded font-bold text-amber-800 min-w-[50px] text-center">
+              {selectedRowId ? `EXT-${jobs.findIndex(j => j.id === selectedRowId) + 1}` : "A1"}
+            </div>
+            <div className="text-gray-400 font-bold">fx</div>
+            <div className="border border-gray-300 px-2 py-0.5 rounded flex-grow bg-gray-50 truncate min-h-[22px]">
+              {selectedRowId && jobs.find(j => j.id === selectedRowId && j.isExternal)
+                ? `=EXT_PLACEMENT(BIAYA_DIPROSES: ${formatRupiah(jobs.find(j => j.id === selectedRowId)?.biayaPemberangkatan || 0)}, SUDAH_BAYAR: ${formatRupiah(jobs.find(j => j.id === selectedRowId)?.totalBayarExternal || 0)}, SISA: ${formatRupiah((jobs.find(j => j.id === selectedRowId)?.biayaPemberangkatan || 0) - (jobs.find(j => j.id === selectedRowId)?.totalBayarExternal || 0))}, COMMISSION_FEE_PT: ${formatRupiah(jobs.find(j => j.id === selectedRowId)?.feePemberangkatanPT || 0)})`
+                : "Formula Bar: Formula memantau realisasi pembayaran biaya penempatan siswa luar jaringan LPK Nandita."
+              }
+            </div>
+          </div>
+
+          {/* Table Ledger view for External Placements */}
+          <div className="flex-grow overflow-auto bg-gray-50/50">
+            <table className="w-full text-left border-collapse min-w-[1000px]">
+              <thead>
+                <tr className="bg-amber-50/50 border-b border-amber-200 text-xs font-mono text-amber-800">
+                  <th className="w-10 text-center border-r border-amber-200 select-none py-1">#</th>
+                  <th className="px-3 py-1 border-r border-amber-200 w-32">ID Daftar</th>
+                  <th className="px-3 py-1 border-r border-amber-200">Nama Siswa Eksternal (A)</th>
+                  <th className="px-3 py-1 border-r border-amber-200">Mitra Perusahaan / Kapal (B)</th>
+                  <th className="px-3 py-1 border-r border-amber-200 w-32 text-center">Bagian Penempatan</th>
+                  <th className="px-3 py-1 border-r border-amber-200 w-44 text-right">Biaya Pemberangkatan (C)</th>
+                  <th className="px-3 py-1 border-r border-amber-200 w-40 text-right text-emerald-700">Telah Dibayar (D)</th>
+                  <th className="px-3 py-1 border-r border-amber-200 w-40 text-right text-red-600">Sisa Tunggakan (E)</th>
+                  <th className="px-3 py-1 border-r border-amber-200 w-40 text-right text-indigo-700">Fee PT Mitra</th>
+                  <th className="px-3 py-1 border-r border-amber-200 w-28 text-center">Status Rekrut</th>
+                  <th className="px-3 py-1 text-center w-40">Aksi Pembayaran</th>
+                </tr>
+              </thead>
+              <tbody className="text-xs font-mono">
+                {filteredExternalJobs.map((job, index) => {
+                  const isSelected = selectedRowId === job.id;
+                  const sisaTunggakan = Number(job.biayaPemberangkatan || 0) - Number(job.totalBayarExternal || 0);
+                  const isLunas = sisaTunggakan <= 0;
+                  const statusBayar = isLunas ? "Lunas" : (Number(job.totalBayarExternal || 0) > 0 ? "Belum Lunas" : "Belum Bayar");
+                  return (
+                    <tr
+                      key={job.id}
+                      onClick={() => setSelectedRowId(job.id)}
+                      className={`border-b border-gray-200 cursor-pointer select-none hover:bg-amber-50/10 ${
+                        isSelected ? "bg-amber-100/60 border-2 border-amber-600" : ""
+                      }`}
+                    >
+                      <td className="w-10 text-center bg-gray-50 border-r border-gray-200 text-[10px] text-gray-400 py-2.5">
+                        {index + 1}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-200 font-bold text-gray-600">
+                        {job.id}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-200 font-sans font-semibold text-gray-950">
+                        <div className="flex flex-col">
+                          <span>{job.siswaNama}</span>
+                          <span className="text-[10px] text-gray-500">{job.noHpExternal || "Tidak ada No.HP"}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-200 font-sans text-gray-800">
+                        <div className="flex flex-col">
+                          <span className="font-semibold">{job.namaPerusahaan}</span>
+                          <span className="text-[10px] text-gray-500">{job.posisi}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-200 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
+                          job.lokasiTipe === JobLocationType.LuarNegeri ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"
+                        }`}>
+                          {job.lokasiTipe}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-200 text-right font-semibold text-gray-800">
+                        {formatRupiah(job.biayaPemberangkatan || 0)}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-200 text-right font-semibold text-emerald-700">
+                        {formatRupiah(job.totalBayarExternal || 0)}
+                      </td>
+                      <td className={`px-3 py-2 border-r border-gray-200 text-right font-bold ${sisaTunggakan > 0 ? "text-red-600 bg-red-50/20" : "text-green-700"}`}>
+                        {formatRupiah(sisaTunggakan)}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-200 text-right font-semibold text-indigo-700">
+                        {formatRupiah(job.feePemberangkatanPT || 0)}
+                      </td>
+                      <td className="px-3 py-2 border-r border-gray-200 text-center font-sans text-[10px] font-bold text-gray-600">
+                        {job.status}
+                      </td>
+                      <td className="px-3 py-2 text-center space-x-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveExternalJob(job);
+                            setExternalPayAmount(sisaTunggakan);
+                            setIsExternalPaymentFormOpen(true);
+                          }}
+                          className="px-2 py-0.5 text-[10px] bg-amber-600 text-white font-sans font-semibold rounded hover:bg-amber-700 cursor-pointer"
+                        >
+                          Bayar
+                        </button>
+                        {sisaTunggakan > 0 && job.noHpExternal && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const msg = formatReceivableNotification(
+                                job.siswaNama,
+                                job.biayaPemberangkatan || 0,
+                                sisaTunggakan,
+                                schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
+                                schoolSettings?.waTemplateTagihanSiswa
+                              );
+                              if (onTriggerWhatsApp) {
+                                onTriggerWhatsApp({
+                                  recipientName: job.siswaNama,
+                                  phone: job.noHpExternal || "",
+                                  category: "Tunggakan Siswa",
+                                  message: msg
+                                });
+                              }
+                            }}
+                            className="px-2 py-0.5 text-[10px] bg-emerald-600 text-white font-sans font-semibold rounded hover:bg-emerald-700 cursor-pointer inline-flex items-center"
+                            title="Kirim Tunggakan via WhatsApp"
+                          >
+                            WA Tunggakan
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredExternalJobs.length === 0 && (
+                  <tr>
+                    <td colSpan={11} className="text-center py-10 text-gray-400 bg-gray-50">
+                      Tidak ada rincian dana keberangkatan siswa eksternal.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="bg-gray-100 border-t border-gray-300 px-4 py-2 flex items-center justify-between text-xs font-mono text-gray-500">
+            <div>Total Data Keuangan Eksternal: {filteredExternalJobs.length} Pendaftaran</div>
+            <div>LPK Nandita Placement Revenue Ledger</div>
+          </div>
+        </>
+      )}
 
       {/* Account Details & Payment History Modal */}
       {activeAccountDetails && (
@@ -756,6 +1133,91 @@ export default function KeuanganSheet({
                   className="px-4 py-1.5 text-xs bg-teal-800 text-white rounded hover:bg-teal-900 font-semibold"
                 >
                   Buka Rekening Kas
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* External Student Payment Modal */}
+      {isExternalPaymentFormOpen && activeExternalJob && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-sm animate-scale-in">
+            <div className="p-4 border-b border-gray-200 bg-amber-700 text-white rounded-t-lg">
+              <h3 className="font-bold text-xs uppercase font-mono">Input Setoran Siswa Eksternal</h3>
+            </div>
+            <form onSubmit={handleRecordExternalPaymentSubmit} className="p-4 space-y-3">
+              <p className="text-xs text-gray-500">
+                Catat angsuran / pelunasan biaya proses keberangkatan untuk siswa eksternal <strong>{activeExternalJob.siswaNama}</strong>.
+              </p>
+              
+              <div className="bg-amber-50 p-2.5 rounded border border-amber-200 text-xs text-amber-900 space-y-1">
+                <div className="flex justify-between">
+                  <span>Total Biaya:</span>
+                  <span className="font-bold font-mono">{formatRupiah(activeExternalJob.biayaPemberangkatan || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Sudah Dibayar:</span>
+                  <span className="font-bold font-mono text-emerald-700">{formatRupiah(activeExternalJob.totalBayarExternal || 0)}</span>
+                </div>
+                <div className="flex justify-between border-t border-amber-200 pt-1 mt-1">
+                  <span>Sisa Tunggakan:</span>
+                  <span className="font-bold font-mono text-red-600">
+                    {formatRupiah((activeExternalJob.biayaPemberangkatan || 0) - (activeExternalJob.totalBayarExternal || 0))}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 mb-1">Jumlah Setoran (Rp) *</label>
+                <input
+                  type="number"
+                  required
+                  value={externalPayAmount || ""}
+                  onChange={(e) => setExternalPayAmount(Number(e.target.value))}
+                  placeholder="e.g. 5000000"
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 mb-1">Tanggal Bayar</label>
+                <input
+                  type="date"
+                  required
+                  value={externalPayDate}
+                  onChange={(e) => setExternalPayDate(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-600 mb-1">Keterangan Pembayaran</label>
+                <input
+                  type="text"
+                  value={externalPayNotes}
+                  onChange={(e) => setExternalPayNotes(e.target.value)}
+                  className="w-full border border-gray-300 rounded px-2.5 py-1.5 text-xs focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsExternalPaymentFormOpen(false);
+                    setActiveExternalJob(null);
+                  }}
+                  className="px-3 py-1.5 text-xs border border-gray-300 rounded text-gray-500 hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 text-xs bg-amber-700 text-white rounded font-bold hover:bg-amber-800"
+                >
+                  Simpan Transaksi
                 </button>
               </div>
             </form>

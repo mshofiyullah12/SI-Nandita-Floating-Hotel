@@ -64,6 +64,7 @@ import LaporanKeuanganSheet from "./components/LaporanKeuanganSheet";
 import SiswaTagihanSheet from "./components/SiswaTagihanSheet";
 import SiswaRiwayatSheet from "./components/SiswaRiwayatSheet";
 import WhatsAppModal from "./components/WhatsAppModal";
+import SecurityHostingSheet from "./components/SecurityHostingSheet";
 import GoogleSheetsSync from "./components/GoogleSheetsSync";
 import { WhatsAppNotification } from "./utils/whatsapp";
 import NanditaLogo from "./components/NanditaLogo";
@@ -91,9 +92,19 @@ import {
   FileSpreadsheet,
   Menu,
   ChevronDown,
-  Home
+  Home,
+  Cloud,
+  CloudLightning,
+  Loader2,
+  Lock
 } from "lucide-react";
 import { motion } from "motion/react";
+import {
+  saveLPKDataToFirestore,
+  loadLPKDataFromFirestore,
+  saveUserSessionToFirestore,
+  loadUserSessionFromFirestore
+} from "./lib/firestoreSync";
 
 export default function App() {
   // 1. Core State Hooks
@@ -149,6 +160,99 @@ export default function App() {
   const [isSheetMenuOpen, setIsSheetMenuOpen] = useState(false);
   const [addUserTrigger, setAddUserTrigger] = useState(0);
 
+  // Cloud Firestore Sync states and helper
+  const [isCloudSyncing, setIsCloudSyncing] = useState<boolean>(false);
+  const [cloudStatus, setCloudStatus] = useState<string>("connected"); // 'connected', 'syncing', 'error'
+
+  // Database Optimization Refs (Prevents rate limiting and excessive write volume)
+  const dbSyncTimeoutRef = React.useRef<any>(null);
+  const latestDataRef = React.useRef<any>(null);
+
+  // Auto-flush pending Firestore writes on tab close or refresh to guarantee data durability
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (dbSyncTimeoutRef.current && latestDataRef.current && isLoggedIn && currentUser) {
+        saveLPKDataToFirestore(latestDataRef.current).catch(console.error);
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [isLoggedIn, currentUser]);
+
+  const loadDataFromCloud = async (userObj: UserAccount | null = currentUser) => {
+    if (!userObj) return;
+    setIsCloudSyncing(true);
+    setCloudStatus("syncing");
+    try {
+      // 1. Load active worksheet/sheet session
+      const session = await loadUserSessionFromFirestore(userObj.username);
+      if (session && session.activeSheet) {
+        setActiveSheet(session.activeSheet);
+      }
+
+      // 2. Load entire database
+      const cloudData = await loadLPKDataFromFirestore();
+      if (cloudData) {
+        if (cloudData.schoolSettings) setSchoolSettings(cloudData.schoolSettings);
+        if (cloudData.siswa) setSiswa(cloudData.siswa);
+        if (cloudData.staff) setStaff(cloudData.staff);
+        if (cloudData.absensi) setAbsensi(cloudData.absensi);
+        if (cloudData.sertifikat) setSertifikat(cloudData.sertifikat);
+        if (cloudData.keuangan) setKeuangan(cloudData.keuangan);
+        if (cloudData.pembayaranLog) setPembayaranLog(cloudData.pembayaranLog);
+        if (cloudData.payroll) setPayroll(cloudData.payroll);
+        if (cloudData.jobs) setJobs(cloudData.jobs);
+        if (cloudData.userAccounts) setUserAccounts(cloudData.userAccounts);
+        if (cloudData.tagihan) setTagihan(cloudData.tagihan);
+        if (cloudData.pendapatanLain) setPendapatanLain(cloudData.pendapatanLain);
+        if (cloudData.pengeluaranKas) setPengeluaranKas(cloudData.pengeluaranKas);
+        if (cloudData.utangPegawai) setUtangPegawai(cloudData.utangPegawai);
+        if (cloudData.jenisPendapatan) setJenisPendapatan(cloudData.jenisPendapatan);
+        if (cloudData.katPengeluaran) setKatPengeluaran(cloudData.katPengeluaran);
+        if (cloudData.customTabs) setCustomTabs(cloudData.customTabs);
+
+        // Also save to LocalStorage for offline/fast load
+        saveAllToLocalStorage(
+          cloudData.schoolSettings,
+          cloudData.siswa,
+          cloudData.staff,
+          cloudData.absensi,
+          cloudData.sertifikat,
+          cloudData.keuangan,
+          cloudData.pembayaranLog,
+          cloudData.payroll,
+          cloudData.jobs,
+          cloudData.customTabs,
+          cloudData.userAccounts,
+          cloudData.tagihan,
+          cloudData.pendapatanLain,
+          cloudData.pengeluaranKas,
+          cloudData.utangPegawai,
+          cloudData.jenisPendapatan,
+          cloudData.katPengeluaran
+        );
+      }
+      setCloudStatus("connected");
+    } catch (e: any) {
+      console.error("Gagal sinkronisasi data dari Cloud Firestore:", e);
+      const isOfflineError = !navigator.onLine || 
+        (e && e.message && (
+          e.message.includes("offline") || 
+          e.message.includes("Failed to get document") || 
+          e.message.includes("unavailable")
+        ));
+      if (isOfflineError) {
+        setCloudStatus("offline");
+      } else {
+        setCloudStatus("error");
+      }
+    } finally {
+      setIsCloudSyncing(false);
+    }
+  };
+
   // 2. Local Storage Sync
   useEffect(() => {
     // Attempt to load existing state
@@ -198,18 +302,45 @@ export default function App() {
     if (storedKatPengeluaran) setKatPengeluaran(JSON.parse(storedKatPengeluaran));
   }, []);
 
-  // Sync auth state and active sheet in real-time to localStorage
+  // Sync auth state and active sheet in real-time to localStorage and Cloud Firestore
   useEffect(() => {
     if (isLoggedIn && currentUser) {
       localStorage.setItem("lpk_current_user", JSON.stringify(currentUser));
       if (activeSheet) {
         localStorage.setItem("lpk_active_sheet", activeSheet);
+        saveUserSessionToFirestore(currentUser.username, activeSheet)
+          .then(() => {
+            if (cloudStatus === "offline" && navigator.onLine) {
+              setCloudStatus("connected");
+            }
+          })
+          .catch(e => {
+            console.error("Gagal sinkronisasi sesi ke Cloud Firestore:", e);
+            const isOfflineError = !navigator.onLine || 
+              (e && e.message && (
+                e.message.includes("offline") || 
+                e.message.includes("Failed to get document") || 
+                e.message.includes("unavailable")
+              ));
+            if (isOfflineError) {
+              setCloudStatus("offline");
+            } else {
+              setCloudStatus("error");
+            }
+          });
       }
     } else {
       localStorage.removeItem("lpk_current_user");
       localStorage.removeItem("lpk_active_sheet");
     }
   }, [isLoggedIn, currentUser, activeSheet]);
+
+  // Auto-load data from Cloud Firestore when logged in
+  useEffect(() => {
+    if (isLoggedIn && currentUser) {
+      loadDataFromCloud(currentUser);
+    }
+  }, [isLoggedIn]);
 
   // Helper to persist everything
   const saveAllToLocalStorage = (
@@ -249,6 +380,56 @@ export default function App() {
     localStorage.setItem("lpk_utang_pegawai", JSON.stringify(nextUtangPegawai));
     localStorage.setItem("lpk_jenis_pendapatan", JSON.stringify(nextJenisPendapatan));
     localStorage.setItem("lpk_kat_pengeluaran", JSON.stringify(nextKatPengeluaran));
+
+    // Also sync to Cloud Firestore in real-time with debounced strategy if logged in
+    if (isLoggedIn && currentUser) {
+      setCloudStatus("syncing");
+      
+      const payload = {
+        schoolSettings: nextSettings,
+        siswa: nextSiswa,
+        staff: nextStaff,
+        absensi: nextAbsensi,
+        sertifikat: nextSertifikat,
+        keuangan: nextKeuangan,
+        pembayaranLog: nextPayments,
+        payroll: nextPayroll,
+        jobs: nextJobs,
+        userAccounts: nextUsers,
+        tagihan: nextTagihan,
+        pendapatanLain: nextPendapatanLain,
+        pengeluaranKas: nextPengeluaranKas,
+        utangPegawai: nextUtangPegawai,
+        jenisPendapatan: nextJenisPendapatan,
+        katPengeluaran: nextKatPengeluaran,
+        customTabs: nextCustomTabs
+      };
+
+      latestDataRef.current = payload;
+
+      if (dbSyncTimeoutRef.current) {
+        clearTimeout(dbSyncTimeoutRef.current);
+      }
+
+      dbSyncTimeoutRef.current = setTimeout(() => {
+        saveLPKDataToFirestore(payload)
+          .then(() => setCloudStatus("connected"))
+          .catch(e => {
+            console.error("Gagal sinkronisasi data ke Cloud Firestore:", e);
+            const isOfflineError = !navigator.onLine || 
+              (e && e.message && (
+                e.message.includes("offline") || 
+                e.message.includes("Failed to get document") || 
+                e.message.includes("unavailable")
+              ));
+            if (isOfflineError) {
+              setCloudStatus("offline");
+            } else {
+              setCloudStatus("error");
+            }
+          });
+      }, 2500); // 2.5 seconds debounce to group multiple consecutive edits and optimize DB writes
+    }
   };
 
   const handleRestoreAllData = (data: {
@@ -1156,6 +1337,16 @@ export default function App() {
             onExportFullBackup={handleExportFullBackup}
           />
         );
+      case "Audit & Hosting":
+        return (
+          <SecurityHostingSheet
+            siswa={siswa}
+            staff={staff}
+            userAccounts={userAccounts}
+            schoolSettings={schoolSettings}
+            onTriggerWhatsApp={(notif) => setPendingWhatsApp(notif)}
+          />
+        );
       case "Integrasi Google Sheets":
         return (
           <GoogleSheetsSync
@@ -1228,6 +1419,7 @@ export default function App() {
     { name: "Integrasi Google Sheets", icon: FileSpreadsheet },
     { name: "Data Pengguna", icon: Shield },
     { name: "Pengaturan", icon: Settings2 },
+    { name: "Audit & Hosting", icon: Lock },
     // Student specific tabs
     { name: "Tagihan Saya", icon: Receipt },
     { name: "Riwayat Pembayaran", icon: Coins }
@@ -1262,10 +1454,10 @@ export default function App() {
     
     // General restrictions for Staf/Keuangan
     if (currentUser.role === "Keuangan") {
-      return !["Data Pengguna", "Pengaturan"].includes(sheet.name);
+      return !["Data Pengguna", "Pengaturan", "Audit & Hosting"].includes(sheet.name);
     }
     if (currentUser.role === "Staf") {
-      return !["Data Pengguna", "Pengaturan"].includes(sheet.name);
+      return !["Data Pengguna", "Pengaturan", "Audit & Hosting"].includes(sheet.name);
     }
     return true;
   });
@@ -1279,6 +1471,40 @@ export default function App() {
       }
     }
   }, [activeSheet, currentUser, isLoggedIn, customTabs]);
+
+  const handleLogoutLPK = async () => {
+    if (currentUser) {
+      setIsCloudSyncing(true);
+      try {
+        await saveLPKDataToFirestore({
+          schoolSettings,
+          siswa,
+          staff,
+          absensi,
+          sertifikat,
+          keuangan,
+          pembayaranLog,
+          payroll,
+          jobs,
+          userAccounts,
+          tagihan,
+          pendapatanLain,
+          pengeluaranKas,
+          utangPegawai,
+          jenisPendapatan,
+          katPengeluaran,
+          customTabs
+        });
+        await saveUserSessionToFirestore(currentUser.username, activeSheet);
+      } catch (e) {
+        console.error("Gagal menyimpan data akhir ke Firestore saat log out:", e);
+      } finally {
+        setIsCloudSyncing(false);
+      }
+    }
+    setIsLoggedIn(false);
+    setCurrentUser(null);
+  };
 
   if (!isLoggedIn) {
     return (
@@ -1332,6 +1558,28 @@ export default function App() {
 
         {/* User Info & Institutional Statistics */}
         <div className="flex flex-wrap items-center gap-4 mt-3 md:mt-0">
+          {/* Cloud Sync Status Indicator */}
+          {isLoggedIn && (
+            <div className="flex items-center space-x-1.5 bg-white/5 px-2.5 py-1.5 rounded-xl border border-white/10 text-[10px] font-mono text-white/80" title="Status Sinkronisasi Cloud (Optimasi: Debounce 2.5s & Caching Offline Aktif)">
+              {cloudStatus === "syncing" ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                  <span className="hidden sm:inline">Menyimpan...</span>
+                </>
+              ) : cloudStatus === "error" ? (
+                <>
+                  <CloudLightning className="w-3.5 h-3.5 text-red-400" />
+                  <span className="hidden sm:inline text-red-300">Gagal Sinkron</span>
+                </>
+              ) : (
+                <>
+                  <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="hidden sm:inline text-emerald-300">Tersinkronisasi Cloud</span>
+                </>
+              )}
+            </div>
+          )}
+
           {currentUser && (
             <div className="flex items-center space-x-2.5 bg-white/10 px-3.5 py-1.5 rounded-xl border border-white/15 backdrop-blur-sm">
               <div className="text-right">
@@ -1340,10 +1588,7 @@ export default function App() {
               </div>
               <button 
                 id="btn-logout"
-                onClick={() => {
-                  setIsLoggedIn(false);
-                  setCurrentUser(null);
-                }}
+                onClick={handleLogoutLPK}
                 className="bg-red-500/80 hover:bg-red-600 text-white rounded-lg p-1.5 transition ml-1"
                 title="Log Out dari Sistem"
               >

@@ -39,6 +39,7 @@ import {
   UserPlus
 } from "lucide-react";
 import { motion } from "motion/react";
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
 
 interface ExcelDashboardProps {
   siswa: Siswa[];
@@ -116,6 +117,12 @@ export default function ExcelDashboard({
 
   const saldoKasAkhir = totalPemasukan - totalPengeluaran;
 
+  // 4c. Pendapatan Penempatan Kerja (External Students Placement)
+  const externalJobs = jobs.filter(j => j.isExternal);
+  const totalRencanaPenempatan = externalJobs.reduce((acc, j) => acc + (j.biayaPemberangkatan || 0), 0);
+  const totalBayarPenempatan = externalJobs.reduce((acc, j) => acc + (j.totalBayarExternal || 0), 0);
+  const totalPiutangPenempatan = Math.max(totalRencanaPenempatan - totalBayarPenempatan, 0);
+
   // 5. Job Recruitment Stats
   const totalJobRegister = jobs.length;
   const lolosDanBerangkat = jobs.filter(j => j.status === JobStatus.Lolos || j.status === JobStatus.Berangkat).length;
@@ -133,6 +140,36 @@ export default function ExcelDashboard({
     count,
     pct: Math.round((count / (totalSiswa || 1)) * 100)
   }));
+
+  // 5b. Monthly Job Placements Trend (Lolos vs Berangkat)
+  const getMonthIndex = (dateStr: string) => {
+    if (!dateStr) return -1;
+    const parts = dateStr.split("-");
+    if (parts.length >= 2) {
+      const m = parseInt(parts[1], 10);
+      if (m >= 1 && m <= 12) return m - 1;
+    }
+    return -1;
+  };
+
+  const monthsIndo = [
+    "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+    "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+  ];
+
+  const placementTrendData = monthsIndo.map((monthName, idx) => {
+    const monthJobs = jobs.filter(j => {
+      const mIdx = getMonthIndex(j.tanggalDaftar);
+      return mIdx === idx;
+    });
+    const lolosCount = monthJobs.filter(j => j.status === JobStatus.Lolos).length;
+    const berangkatCount = monthJobs.filter(j => j.status === JobStatus.Berangkat).length;
+    return {
+      name: monthName.substring(0, 3), // short name for x-axis layout
+      Lolos: lolosCount,
+      Berangkat: berangkatCount
+    };
+  }).filter((_, idx) => idx <= 7); // Show Jan - Agt of the active year
 
   return (
     <div className="flex flex-col h-full bg-slate-50 text-gray-800 font-sans" id="excel-dashboard-container">
@@ -359,7 +396,7 @@ export default function ExcelDashboard({
           {/* Row 9-14: Main KPI Card Indicators */}
           <div className="mb-6">
             {/* KPI Cards in a grid */}
-            <div className="p-4 grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-100/50 rounded-2xl border border-slate-200/80">
+            <div className="p-4 grid grid-cols-1 md:grid-cols-5 gap-4 bg-slate-100/50 rounded-2xl border border-slate-200/80">
               {/* Card 1: Students */}
               <motion.div 
                 whileHover={{ y: -3 }}
@@ -368,7 +405,7 @@ export default function ExcelDashboard({
               >
                 <div>
                   <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Buku Induk Siswa</p>
-                  <h3 className="text-2xl font-bold mt-2 text-slate-900 group-hover:text-[#001f3f] transition-colors">{totalSiswa} Siswa</h3>
+                  <h3 className="text-xl font-bold mt-2 text-slate-900 group-hover:text-[#001f3f] transition-colors">{totalSiswa} Siswa</h3>
                   <div className="flex items-center mt-3 space-x-2 text-[10px]">
                     <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-bold">
                       {siswaAktif} Aktif
@@ -378,7 +415,7 @@ export default function ExcelDashboard({
                     </span>
                   </div>
                 </div>
-                <div className="p-3 bg-[#001f3f]/5 rounded-xl text-[#001f3f] group-hover:bg-[#001f3f] group-hover:text-amber-400 transition-all duration-300 shadow-sm">
+                <div className="p-3 bg-[#001f3f]/5 rounded-xl text-[#001f3f] group-hover:bg-[#001f3f] group-hover:text-amber-400 transition-all duration-300 shadow-sm shrink-0">
                   <Users className="w-5 h-5" />
                 </div>
               </motion.div>
@@ -387,17 +424,17 @@ export default function ExcelDashboard({
               <motion.div 
                 whileHover={{ y: -3 }}
                 className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-start justify-between cursor-pointer group"
-                onClick={() => onSwitchSheet("Keuangan & Piutang")}
+                onClick={() => onSwitchSheet("Keuangan & Tunggakan Siswa")}
               >
                 <div>
                   <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Pendidikan Terbayar</p>
-                  <h3 className="text-2xl font-bold mt-2 text-emerald-700 group-hover:text-emerald-800 transition-colors">{formatRupiah(totalBayarSemua)}</h3>
+                  <h3 className="text-xl font-bold mt-2 text-emerald-700 group-hover:text-emerald-800 transition-colors">{formatRupiah(totalBayarSemua)}</h3>
                   <div className="flex items-center mt-3 space-x-2 text-[10px]">
                     <span className="text-slate-500 font-medium">Realisasi:</span>
                     <span className="font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">{ratePelunasan}% Lunas</span>
                   </div>
                 </div>
-                <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600 group-hover:bg-[#001f3f] group-hover:text-amber-400 transition-all duration-300 shadow-sm">
+                <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600 group-hover:bg-[#001f3f] group-hover:text-amber-400 transition-all duration-300 shadow-sm shrink-0">
                   <DollarSign className="w-5 h-5" />
                 </div>
               </motion.div>
@@ -409,18 +446,45 @@ export default function ExcelDashboard({
                 onClick={() => onSwitchSheet("Keuangan & Tunggakan Siswa")}
               >
                 <div>
-                  <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Total Tunggakan Siswa</p>
-                  <h3 className="text-2xl font-bold mt-2 text-red-600 group-hover:text-red-700 transition-colors">{formatRupiah(totalPiutangSemua)}</h3>
+                  <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Tunggakan Siswa</p>
+                  <h3 className="text-xl font-bold mt-2 text-red-600 group-hover:text-red-700 transition-colors">{formatRupiah(totalPiutangSemua)}</h3>
                   <div className="flex items-center mt-3 text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-full w-max">
                     <span>{keuangan.filter(k => k.piutang > 0).length} Siswa Belum Lunas</span>
                   </div>
                 </div>
-                <div className="p-3 bg-red-50 rounded-xl text-red-600 group-hover:bg-[#001f3f] group-hover:text-amber-400 transition-all duration-300 shadow-sm">
+                <div className="p-3 bg-red-50 rounded-xl text-red-600 group-hover:bg-[#001f3f] group-hover:text-amber-400 transition-all duration-300 shadow-sm shrink-0">
                   <TrendingUp className="w-5 h-5" />
                 </div>
               </motion.div>
 
-              {/* Card 4: Jobs Placed */}
+              {/* Card 4: Pendapatan Penempatan Kerja */}
+              <motion.div 
+                whileHover={{ y: -3 }}
+                className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-start justify-between cursor-pointer group"
+                onClick={() => onSwitchSheet("Keuangan & Tunggakan Siswa")}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-[10px] font-mono text-amber-700 uppercase tracking-wider font-semibold truncate">Penempatan Kerja (Eksternal)</p>
+                  <h3 className="text-xl font-bold mt-2 text-amber-800 group-hover:text-amber-900 transition-colors truncate">
+                    {formatRupiah(totalBayarPenempatan)}
+                  </h3>
+                  <div className="mt-3 space-y-1 text-[9px] text-slate-500 font-sans">
+                    <div className="flex justify-between border-b border-slate-50 pb-0.5">
+                      <span>Target:</span>
+                      <span className="font-semibold font-mono text-slate-700">{formatRupiah(totalRencanaPenempatan)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tunggakan:</span>
+                      <span className="font-semibold font-mono text-red-600">{formatRupiah(totalPiutangPenempatan)}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-3 bg-amber-50 rounded-xl text-amber-600 group-hover:bg-[#001f3f] group-hover:text-amber-400 transition-all duration-300 shadow-sm ml-2 shrink-0">
+                  <Ship className="w-5 h-5" />
+                </div>
+              </motion.div>
+
+              {/* Card 5: Jobs Placed */}
               <motion.div 
                 whileHover={{ y: -3 }}
                 className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-300 flex items-start justify-between cursor-pointer group"
@@ -428,12 +492,12 @@ export default function ExcelDashboard({
               >
                 <div>
                   <p className="text-[10px] font-mono text-slate-400 uppercase tracking-wider font-semibold">Perekrutan Kerja</p>
-                  <h3 className="text-2xl font-bold mt-2 text-[#001f3f] transition-colors">{totalJobRegister} Terdaftar</h3>
+                  <h3 className="text-xl font-bold mt-2 text-[#001f3f] transition-colors">{totalJobRegister} Terdaftar</h3>
                   <div className="flex items-center mt-3 space-x-1 text-[10px] text-indigo-700 font-bold bg-indigo-50 px-2 py-0.5 rounded-full">
-                    <span>{lolosDanBerangkat} Berhasil Placed ({jobLuarNegeri} LN / {jobDalamNegeri} DN)</span>
+                    <span>{lolosDanBerangkat} Lolos Placed ({jobLuarNegeri} LN)</span>
                   </div>
                 </div>
-                <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600 group-hover:bg-[#001f3f] group-hover:text-amber-400 transition-all duration-300 shadow-sm">
+                <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600 group-hover:bg-[#001f3f] group-hover:text-amber-400 transition-all duration-300 shadow-sm shrink-0">
                   <Briefcase className="w-5 h-5" />
                 </div>
               </motion.div>
@@ -595,6 +659,91 @@ export default function ExcelDashboard({
                 </div>
               </div>
 
+            </div>
+          </div>
+
+          {/* Row 15-30b: Recharts Placement Trend Chart */}
+          <div className="mb-6">
+            <div className="p-6 bg-white rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md transition-all duration-300">
+              <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 pb-2 border-b border-slate-100 gap-2">
+                <div>
+                  <h4 className="text-xs font-bold font-mono uppercase text-[#001f3f] tracking-wider flex items-center">
+                    <TrendingUp className="w-4 h-4 mr-1.5 text-amber-500" />
+                    Tren Penempatan Kerja per Bulan (Lolos vs Berangkat)
+                  </h4>
+                  <p className="text-[10px] text-slate-500 mt-1 font-sans">
+                    Visualisasi dinamika alumni yang dinyatakan Lolos seleksi siap berangkat vs yang sudah Berangkat ke negara penempatan.
+                  </p>
+                </div>
+                <div className="flex items-center space-x-3 text-[10px] self-start md:self-auto font-sans">
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    <span className="text-slate-600 font-medium">Lolos ({jobs.filter(j => j.status === JobStatus.Lolos).length})</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                    <span className="text-slate-600 font-medium">Berangkat ({jobs.filter(j => j.status === JobStatus.Berangkat).length})</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={placementTrendData}
+                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorLolos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorBerangkat" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.2}/>
+                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                    <XAxis 
+                      dataKey="name" 
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      axisLine={{ stroke: '#cbd5e1' }}
+                    />
+                    <YAxis 
+                      tick={{ fill: '#64748b', fontSize: 10 }}
+                      axisLine={{ stroke: '#cbd5e1' }}
+                      allowDecimals={false}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#ffffff', 
+                        border: '1px solid #e2e8f0',
+                        borderRadius: '0.75rem',
+                        fontSize: '11px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="Lolos" 
+                      stroke="#10b981" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorLolos)" 
+                      name="Siswa Lolos"
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="Berangkat" 
+                      stroke="#4f46e5" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorBerangkat)" 
+                      name="Siswa Berangkat"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
 

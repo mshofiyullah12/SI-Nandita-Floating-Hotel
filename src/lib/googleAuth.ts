@@ -3,8 +3,8 @@ import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User 
 import firebaseConfig from "../../firebase-applet-config.json";
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+export const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
 
 const provider = new GoogleAuthProvider();
 // Request Google Sheets and Drive scopes

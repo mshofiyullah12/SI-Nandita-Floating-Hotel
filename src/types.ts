@@ -158,7 +158,7 @@ export interface JobRegister {
   id: string; // JOB-001
   siswaId: string;
   siswaNama: string;
-  programStudi: ProgramStudi;
+  programStudi: ProgramStudi | string;
   namaPerusahaan: string; // e.g. "Royal Caribbean", "Hilton Hotel Jakarta"
   posisi: string; // e.g. "Assistant Cook", "Steward", "Bartender"
   lokasiTipe: JobLocationType;
@@ -166,6 +166,12 @@ export interface JobRegister {
   gajiPerkiraan: string; // e.g. "USD 1,500 / month"
   tanggalDaftar: string;
   status: JobStatus;
+  // New integrated fields for External LPK students & Placements
+  isExternal?: boolean;
+  noHpExternal?: string;
+  biayaPemberangkatan?: number; // Biaya pemberangkatan/proses yang ditagihkan ke siswa external
+  feePemberangkatanPT?: number; // Fee penempatan/pemberangkatan dari PT/Perusahaan
+  totalBayarExternal?: number; // Jumlah yang sudah dibayar oleh siswa external
 }
 
 export interface SchoolSettings {
