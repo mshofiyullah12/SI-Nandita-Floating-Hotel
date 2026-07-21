@@ -110,8 +110,13 @@ export default function KeuanganSheet({
   const [externalPayDate, setExternalPayDate] = useState(new Date().toISOString().split("T")[0]);
   const [isExternalPaymentFormOpen, setIsExternalPaymentFormOpen] = useState(false);
 
-  // Filters for Internal
-  const filteredKeuangan = keuangan.filter(k => {
+  // Filters for Internal (strictly excludes external candidates)
+  const internalKeuangan = keuangan.filter(k => {
+    const isExt = k.siswaId.startsWith("EXT-") || (jobs || []).some(j => j.siswaId === k.siswaId && j.isExternal);
+    return !isExt;
+  });
+
+  const filteredKeuangan = internalKeuangan.filter(k => {
     const matchesSearch = k.siswaNama.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === "All" || k.statusBayar === filterStatus;
     return matchesSearch && matchesStatus;
@@ -129,11 +134,12 @@ export default function KeuanganSheet({
     return matchesSearch && matchesStatus;
   });
 
-  // Calculate quick metrics
-  const totalRencana = keuangan.reduce((acc, k) => acc + k.totalBiaya, 0);
-  const totalRealisasi = keuangan.reduce((acc, k) => acc + k.totalBayar, 0);
-  const totalPiutangActive = keuangan.reduce((acc, k) => acc + k.piutang, 0);
+  // Calculate quick metrics for Internal Students
+  const totalRencana = internalKeuangan.reduce((acc, k) => acc + k.totalBiaya, 0);
+  const totalRealisasi = internalKeuangan.reduce((acc, k) => acc + k.totalBayar, 0);
+  const totalPiutangActive = internalKeuangan.reduce((acc, k) => acc + k.piutang, 0);
 
+  // Calculate quick metrics for External Students
   const totalRencanaExternal = externalJobs.reduce((acc, j) => acc + (j.biayaPemberangkatan || 0), 0);
   const totalRealisasiExternal = externalJobs.reduce((acc, j) => acc + (j.totalBayarExternal || 0), 0);
   const totalPiutangExternal = totalRencanaExternal - totalRealisasiExternal;
@@ -796,8 +802,8 @@ export default function KeuanganSheet({
           </div>
 
           <div className="bg-gray-100 border-t border-gray-300 px-4 py-2 flex items-center justify-between text-xs font-mono text-gray-500">
-            <div>Total Data Keuangan: {filteredKeuangan.length} Siswa</div>
-            <div>LPK Nandita Accounting General Ledger</div>
+            <div>Total Data Keuangan: {filteredKeuangan.length} Siswa Internal LPK</div>
+            <div>LPK Nandita Accounting General Ledger (Siswa Internal)</div>
           </div>
         </>
       ) : (

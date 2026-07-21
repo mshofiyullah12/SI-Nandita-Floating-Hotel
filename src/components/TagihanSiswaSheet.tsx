@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { TagihanSiswa, Siswa, SchoolSettings } from "../types";
+import { TagihanSiswa, Siswa, JobRegister, SchoolSettings } from "../types";
 import { Plus, Search, Receipt, Trash2, CheckCircle2, AlertCircle, RefreshCw, UserCheck } from "lucide-react";
 import { formatReceivableNotification, WhatsAppNotification } from "../utils/whatsapp";
 
 interface TagihanSiswaSheetProps {
   tagihanList: TagihanSiswa[];
   siswaList: Siswa[];
+  jobsList?: JobRegister[];
   onAddTagihan: (newTagihan: TagihanSiswa) => void;
   onDeleteTagihan: (id: string) => void;
   onMarkAsPaid: (id: string) => void;
@@ -16,6 +17,7 @@ interface TagihanSiswaSheetProps {
 export default function TagihanSiswaSheet({
   tagihanList,
   siswaList,
+  jobsList = [],
   onAddTagihan,
   onDeleteTagihan,
   onMarkAsPaid,
@@ -24,6 +26,7 @@ export default function TagihanSiswaSheet({
 }: TagihanSiswaSheetProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"Semua" | "Lunas" | "Belum Lunas">("Semua");
+  const [kategoriFilter, setKategoriFilter] = useState<"Semua" | "Siswa Internal" | "Siswa Eksternal">("Semua");
   const [showAddForm, setShowAddForm] = useState(false);
 
   // Form states
@@ -33,6 +36,8 @@ export default function TagihanSiswaSheet({
   const [tanggalTagihan, setTanggalTagihan] = useState(new Date().toISOString().split("T")[0]);
   const [deskripsi, setDeskripsi] = useState("");
 
+  const externalJobs = jobsList.filter(j => j.isExternal);
+
   const filteredTagihan = tagihanList.filter((t) => {
     const matchesSearch =
       t.siswaNama.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -40,7 +45,13 @@ export default function TagihanSiswaSheet({
     
     const matchesStatus = statusFilter === "Semua" || t.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
+    const isExt = t.siswaId.startsWith("EXT-") || externalJobs.some(j => j.siswaId === t.siswaId);
+    const matchesKategori =
+      kategoriFilter === "Semua" ||
+      (kategoriFilter === "Siswa Internal" && !isExt) ||
+      (kategoriFilter === "Siswa Eksternal" && isExt);
+
+    return matchesSearch && matchesStatus && matchesKategori;
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -50,13 +61,26 @@ export default function TagihanSiswaSheet({
       return;
     }
 
+    let studentName = "";
     const targetSiswa = siswaList.find((s) => s.id === selectedSiswaId);
-    if (!targetSiswa) return;
+    if (targetSiswa) {
+      studentName = targetSiswa.nama;
+    } else {
+      const targetExt = externalJobs.find(j => j.siswaId === selectedSiswaId || j.id === selectedSiswaId);
+      if (targetExt) {
+        studentName = targetExt.siswaNama;
+      }
+    }
+
+    if (!studentName) {
+      alert("Siswa tidak ditemukan!");
+      return;
+    }
 
     onAddTagihan({
       id: `TAG-${Date.now().toString().slice(-4)}`,
       siswaId: selectedSiswaId,
-      siswaNama: targetSiswa.nama,
+      siswaNama: studentName,
       namaTagihan: namaTagihan.trim(),
       jumlah: Number(jumlah),
       tanggalTagihan,
@@ -107,7 +131,7 @@ export default function TagihanSiswaSheet({
       </div>
 
       {/* FILTER & STATS BAR */}
-      <div className="my-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="my-6 grid grid-cols-1 md:grid-cols-5 gap-3">
         {/* Search */}
         <div className="md:col-span-2 flex items-center space-x-3 bg-white border border-slate-200/80 rounded-xl px-3 py-2 shadow-sm focus-within:ring-1 focus-within:ring-[#001f3f]">
           <Search className="w-4 h-4 text-slate-400" />
@@ -121,6 +145,20 @@ export default function TagihanSiswaSheet({
           />
         </div>
 
+        {/* Kategori Filter */}
+        <div className="flex items-center bg-white border border-slate-200/80 rounded-xl px-2 py-1 shadow-sm">
+          <select
+            id="filter-tagihan-kategori"
+            value={kategoriFilter}
+            onChange={(e) => setKategoriFilter(e.target.value as any)}
+            className="w-full text-xs focus:outline-none text-slate-700 font-bold bg-transparent py-1 font-sans"
+          >
+            <option value="Semua">Semua Kategori Siswa</option>
+            <option value="Siswa Internal">Siswa Internal LPK</option>
+            <option value="Siswa Eksternal">Siswa Eksternal Job</option>
+          </select>
+        </div>
+
         {/* Status Filter */}
         <div className="flex items-center bg-white border border-slate-200/80 rounded-xl px-2 py-1 shadow-sm">
           <select
@@ -129,7 +167,7 @@ export default function TagihanSiswaSheet({
             onChange={(e) => setStatusFilter(e.target.value as any)}
             className="w-full text-xs focus:outline-none text-slate-600 bg-transparent py-1 font-sans font-medium"
           >
-            <option value="Semua">Semua Status</option>
+            <option value="Semua">Semua Status Bayar</option>
             <option value="Lunas">Lunas</option>
             <option value="Belum Lunas">Belum Lunas</option>
           </select>
@@ -281,11 +319,22 @@ export default function TagihanSiswaSheet({
                   className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 bg-slate-50/30 focus:outline-none focus:ring-1 focus:ring-[#001f3f]"
                 >
                   <option value="">-- Pilih Siswa --</option>
-                  {siswaList.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.nama} ({s.nis})
-                    </option>
-                  ))}
+                  <optgroup label="Siswa Internal LPK">
+                    {siswaList.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        [Internal] {s.nama} ({s.nis})
+                      </option>
+                    ))}
+                  </optgroup>
+                  {externalJobs.length > 0 && (
+                    <optgroup label="Siswa Eksternal Job">
+                      {externalJobs.map((j) => (
+                        <option key={j.id} value={j.siswaId || j.id}>
+                          [Eksternal] {j.siswaNama} - {j.namaPerusahaan}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
                 </select>
               </div>
 

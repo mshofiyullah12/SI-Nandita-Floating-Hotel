@@ -1287,6 +1287,7 @@ export default function App() {
           <TagihanSiswaSheet
             tagihanList={tagihan}
             siswaList={siswa}
+            jobsList={jobs}
             onAddTagihan={handleAddTagihan}
             onDeleteTagihan={handleDeleteTagihan}
             onMarkAsPaid={handleMarkTagihanAsPaid}
