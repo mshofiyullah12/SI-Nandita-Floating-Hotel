@@ -65,6 +65,13 @@ export default function JobRegisterSheet({
   const [feePemberangkatanPT, setFeePemberangkatanPT] = useState<number>(0);
   const [totalBayarExternal, setTotalBayarExternal] = useState<number>(0);
 
+  // Financial modal & detail modal states
+  const [activeDetailJob, setActiveDetailJob] = useState<JobRegister | null>(null);
+  const [isQuickPayOpen, setIsQuickPayOpen] = useState(false);
+  const [quickPayAmount, setQuickPayAmount] = useState<number>(0);
+  const [quickPayDate, setQuickPayDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [quickPayNotes, setQuickPayNotes] = useState<string>("Setoran Angsuran Siswa Eksternal");
+
   // Filter
   const filteredJobs = jobs.filter(j => {
     const matchesSearch = 
@@ -290,17 +297,21 @@ export default function JobRegisterSheet({
 
     // Trigger WhatsApp notification if available
     if (onTriggerWhatsApp) {
+      const totalCost = activeDetailJob.biayaPemberangkatan || 0;
+      const newPiutang = Math.max(totalCost - newTotalPaid, 0);
       const msg = formatPaymentNotification(
         activeDetailJob.siswaNama,
         payVal,
-        quickPayNotes,
+        quickPayNotes || "Setoran Angsuran Siswa Eksternal",
+        quickPayDate,
+        newPiutang,
         schoolSettings?.namaLembaga || "LPK Nandita Floating Hotel",
         schoolSettings?.waTemplatePembayaran
       );
       onTriggerWhatsApp({
         recipientName: activeDetailJob.siswaNama,
         phone: activeDetailJob.noHpExternal || "",
-        category: "Pembayaran Setoran",
+        category: "Pembayaran Siswa",
         message: msg
       });
     }
@@ -991,7 +1002,7 @@ export default function JobRegisterSheet({
                     onTriggerWhatsApp({
                       recipientName: activeDetailJob.siswaNama,
                       phone: activeDetailJob.noHpExternal || "",
-                      category: "Tunggakan Siswa Eksternal",
+                      category: "Tunggakan Siswa",
                       message: msg
                     });
                   }

@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from "react";
-import { KeuanganSiswa, PembayaranLog, Siswa, SchoolSettings, JobRegister, JobLocationType } from "../types";
+import { KeuanganSiswa, PembayaranLog, Siswa, SchoolSettings, JobRegister, JobLocationType, JobStatus } from "../types";
 import { formatRupiah } from "../utils";
 import { Plus, Search, DollarSign, History, AlertCircle, Receipt, Trash2, Check, ExternalLink, MessageSquare } from "lucide-react";
 import { formatPaymentNotification, formatReceivableNotification, WhatsAppNotification } from "../utils/whatsapp";
@@ -54,6 +54,7 @@ export default function KeuanganSheet({
   const [newAccTotalBiaya, setNewAccTotalBiaya] = useState(15000000);
 
   // External student specific account creation form fields
+  const [selectedExtJobId, setSelectedExtJobId] = useState<string>("");
   const [extNama, setExtNama] = useState("");
   const [extNoHp, setExtNoHp] = useState("");
   const [extCompany, setExtCompany] = useState("");
@@ -62,6 +63,31 @@ export default function KeuanganSheet({
   const [extBiayaPemberangkatan, setExtBiayaPemberangkatan] = useState<number>(15000000);
   const [extFeePT, setExtFeePT] = useState<number>(3000000);
   const [extDP, setExtDP] = useState<number>(0);
+
+  const handleSelectExtJob = (jobId: string) => {
+    setSelectedExtJobId(jobId);
+    if (!jobId) {
+      setExtNama("");
+      setExtNoHp("");
+      setExtCompany("");
+      setExtPosition("");
+      setExtBiayaPemberangkatan(15000000);
+      setExtFeePT(3000000);
+      setExtDP(0);
+      return;
+    }
+    const targetJob = jobs.find(j => j.id === jobId);
+    if (targetJob) {
+      setExtNama(targetJob.siswaNama);
+      setExtNoHp(targetJob.noHpExternal || "");
+      setExtCompany(targetJob.namaPerusahaan);
+      setExtPosition(targetJob.posisi);
+      setExtLocationType(targetJob.lokasiTipe);
+      setExtBiayaPemberangkatan(targetJob.biayaPemberangkatan || 15000000);
+      setExtFeePT(targetJob.feePemberangkatanPT || 3000000);
+      setExtDP(targetJob.totalBayarExternal || 0);
+    }
+  };
 
   // Detail Modal State for External Student Rincian & Tunggakan
   const [activeExternalDetailJob, setActiveExternalDetailJob] = useState<JobRegister | null>(null);
@@ -252,43 +278,67 @@ export default function KeuanganSheet({
         return;
       }
 
-      const extSiswaId = `EXT-${Date.now().toString().slice(-4)}`;
-      const jobRegId = `JOB-${Date.now().toString().slice(-4)}`;
-      const keuAccId = `KEU-${Date.now().toString().slice(-4)}`;
       const regDate = new Date().toISOString().split("T")[0];
-
       const initialPaid = Number(extDP) || 0;
       const totalCost = Number(extBiayaPemberangkatan) || 0;
       const remainingPiutang = Math.max(totalCost - initialPaid, 0);
 
-      // 1. Create JobRegister entry for External candidate
-      const newJob: JobRegister = {
-        id: jobRegId,
-        siswaId: extSiswaId,
-        siswaNama: extNama.trim(),
-        programStudi: "Eksternal LPK",
-        namaPerusahaan: extCompany.trim(),
-        posisi: extPosition.trim(),
-        lokasiTipe: extLocationType,
-        negaraKota: extLocationType === JobLocationType.LuarNegeri ? "Luar Negeri" : "Dalam Negeri",
-        gajiPerkiraan: "-",
-        tanggalDaftar: regDate,
-        status: JobStatus.Daftar,
-        isExternal: true,
-        noHpExternal: extNoHp.trim(),
-        biayaPemberangkatan: totalCost,
-        feePemberangkatanPT: Number(extFeePT) || 0,
-        totalBayarExternal: initialPaid
-      };
+      let targetSiswaId = `EXT-${Date.now().toString().slice(-4)}`;
+      let keuAccId = `KEU-${Date.now().toString().slice(-4)}`;
 
-      if (onAddJobRegister) {
-        onAddJobRegister(newJob);
+      if (selectedExtJobId) {
+        const existingJob = jobs.find(j => j.id === selectedExtJobId);
+        if (existingJob) {
+          targetSiswaId = existingJob.siswaId;
+
+          // Check if already has account
+          const duplicate = keuangan.find(k => k.siswaId === existingJob.siswaId || k.siswaNama === existingJob.siswaNama);
+          if (duplicate) {
+            alert(`Siswa eksternal ${existingJob.siswaNama} sudah memiliki rekening keuangan!`);
+            return;
+          }
+
+          // Update existing job record with latest financial metrics
+          if (onUpdateJobRegister) {
+            onUpdateJobRegister({
+              ...existingJob,
+              biayaPemberangkatan: totalCost,
+              feePemberangkatanPT: Number(extFeePT) || 0,
+              totalBayarExternal: initialPaid
+            });
+          }
+        }
+      } else {
+        // Create new JobRegister entry for External candidate
+        const jobRegId = `JOB-${Date.now().toString().slice(-4)}`;
+        const newJob: JobRegister = {
+          id: jobRegId,
+          siswaId: targetSiswaId,
+          siswaNama: extNama.trim(),
+          programStudi: "Eksternal LPK",
+          namaPerusahaan: extCompany.trim(),
+          posisi: extPosition.trim(),
+          lokasiTipe: extLocationType,
+          negaraKota: extLocationType === JobLocationType.LuarNegeri ? "Luar Negeri" : "Dalam Negeri",
+          gajiPerkiraan: "-",
+          tanggalDaftar: regDate,
+          status: JobStatus.Daftar,
+          isExternal: true,
+          noHpExternal: extNoHp.trim(),
+          biayaPemberangkatan: totalCost,
+          feePemberangkatanPT: Number(extFeePT) || 0,
+          totalBayarExternal: initialPaid
+        };
+
+        if (onAddJobRegister) {
+          onAddJobRegister(newJob);
+        }
       }
 
-      // 2. Create KeuanganSiswa record
+      // Create KeuanganSiswa record
       const newKeu: KeuanganSiswa = {
         id: keuAccId,
-        siswaId: extSiswaId,
+        siswaId: targetSiswaId,
         siswaNama: extNama.trim(),
         totalBiaya: totalCost,
         totalBayar: initialPaid,
@@ -299,7 +349,7 @@ export default function KeuanganSheet({
 
       onAddKeuanganAccount(newKeu);
 
-      // 3. Log initial payment DP if > 0
+      // Log initial payment DP if > 0
       if (initialPaid > 0) {
         const newPayment: PembayaranLog = {
           id: `PAY-${Date.now().toString().slice(-4)}`,
@@ -315,6 +365,7 @@ export default function KeuanganSheet({
 
       setIsAccountFormOpen(false);
       // Reset form fields
+      setSelectedExtJobId("");
       setExtNama("");
       setExtNoHp("");
       setExtCompany("");
@@ -1311,7 +1362,26 @@ export default function KeuanganSheet({
               ) : (
                 <>
                   <div className="bg-amber-50 p-2.5 rounded border border-amber-200 text-xs text-amber-900 mb-2">
-                    Buka rekening untuk siswa eksternal. Sistem akan otomatis mensinkronkan data dengan <strong>Job Register / Lowongan Siswa Eksternal</strong>.
+                    Buka rekening untuk siswa eksternal. Anda dapat memilih siswa yang sudah terdaftar di <strong>Job Register / Lowongan</strong> atau mendaftarkan siswa eksternal baru.
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="block text-xs font-bold text-amber-900 mb-1">Pilih Siswa Eksternal Aktif (dari Job Register)</label>
+                    <select
+                      value={selectedExtJobId}
+                      onChange={(e) => handleSelectExtJob(e.target.value)}
+                      className="w-full border border-amber-300 bg-amber-50/50 rounded px-2.5 py-1.5 text-xs font-bold text-amber-950 focus:outline-none"
+                    >
+                      <option value="">-- (+ Input / Daftar Siswa Eksternal Baru) --</option>
+                      {jobs.filter(j => j.isExternal).map(j => {
+                        const hasAccount = keuangan.some(k => k.siswaId === j.siswaId || k.siswaNama === j.siswaNama);
+                        return (
+                          <option key={j.id} value={j.id} disabled={hasAccount}>
+                            {j.siswaNama} - {j.namaPerusahaan} ({j.posisi}) {hasAccount ? "[Akun Rekening Sudah Ada]" : ""}
+                          </option>
+                        );
+                      })}
+                    </select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
@@ -1662,7 +1732,7 @@ export default function KeuanganSheet({
                     onTriggerWhatsApp({
                       recipientName: activeExternalDetailJob.siswaNama,
                       phone: activeExternalDetailJob.noHpExternal || "",
-                      category: "Tunggakan Siswa Eksternal",
+                      category: "Tunggakan Siswa",
                       message: msg
                     });
                   }
