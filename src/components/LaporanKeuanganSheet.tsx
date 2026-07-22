@@ -21,9 +21,13 @@ export default function LaporanKeuanganSheet({
 }: LaporanKeuanganSheetProps) {
   const [reportType, setReportType] = useState<"arus_kas" | "laba_rugi">("arus_kas");
   
-  // Filtering states
-  const [filterMonth, setFilterMonth] = useState<string>("07"); // Default July
-  const [filterYear, setFilterYear] = useState<string>("2026"); // Default 2026
+  // Filtering states default to current active month and year
+  const now = new Date();
+  const currentMonthStr = String(now.getMonth() + 1).padStart(2, "0");
+  const currentYearStr = String(now.getFullYear());
+
+  const [filterMonth, setFilterMonth] = useState<string>(currentMonthStr);
+  const [filterYear, setFilterYear] = useState<string>(currentYearStr);
   const [isAllTime, setIsAllTime] = useState<boolean>(false);
 
   // Helper to filter dates based on selected Month/Year
@@ -31,13 +35,14 @@ export default function LaporanKeuanganSheet({
     if (isAllTime) return true;
     if (!dateStr || dateStr === "-") return false;
     // Format can be YYYY-MM-DD, YYYY/MM/DD, ISO string YYYY-MM-DDTHH:mm:ss, or DD-MM-YYYY
-    const cleanDate = dateStr.split("T")[0].replace(/\//g, "-");
+    const cleanDate = dateStr.split("T")[0].replace(/\//g, "-").trim();
     const parts = cleanDate.split("-");
     if (parts.length < 2) return false;
 
     let year = parts[0];
     let month = parts[1];
-    if (year.length === 2 && parts[2]?.length === 4) {
+
+    if (parts[0].length <= 2 && parts[2]?.length === 4) {
       year = parts[2];
       month = parts[1];
     }
@@ -73,7 +78,7 @@ export default function LaporanKeuanganSheet({
 
   // Get employee loan installments (cicilan) cash inflows
   const inflowLoanPaybacks = utangList.reduce((acc, u) => {
-    const cicilanPeriod = u.riwayatCicilan
+    const cicilanPeriod = (u.riwayatCicilan || [])
       .filter((c) => isDateInPeriod(c.tanggal))
       .reduce((sum, c) => sum + c.jumlah, 0);
     return acc + cicilanPeriod;
@@ -453,7 +458,7 @@ export default function LaporanKeuanganSheet({
                 <option value="07">Juli</option>
                 <option value="08">Agustus</option>
                 <option value="09">September</option>
-                <option value="10">Oktiber</option>
+                <option value="10">Oktober</option>
                 <option value="11">November</option>
                 <option value="12">Desember</option>
               </select>

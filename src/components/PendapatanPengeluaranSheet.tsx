@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { PendapatanLain, PengeluaranKas, PembayaranLog, SchoolSettings } from "../types";
+import { PendapatanLain, PengeluaranKas, PembayaranLog, SchoolSettings, UtangPegawai } from "../types";
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -24,6 +24,7 @@ interface PendapatanPengeluaranSheetProps {
   pendapatanLain: PendapatanLain[];
   pengeluaranKas: PengeluaranKas[];
   pembayaranLog: PembayaranLog[]; // Student tuition log
+  utangPegawai?: UtangPegawai[];
   
   // Category State
   jenisPendapatan: string[];
@@ -51,6 +52,7 @@ export default function PendapatanPengeluaranSheet({
   pendapatanLain,
   pengeluaranKas,
   pembayaranLog,
+  utangPegawai = [],
   jenisPendapatan,
   katPengeluaran,
   onAddPendapatanLain,
@@ -223,6 +225,17 @@ export default function PendapatanPengeluaranSheet({
       kategori: item.kategori,
       keterangan: item.keterangan,
     })),
+    ...(utangPegawai || []).flatMap((u) =>
+      (u.riwayatCicilan || []).map((c) => ({
+        id: c.id,
+        tanggal: c.tanggal,
+        tipe: "Cicilan Kasbon" as const,
+        subjek: u.staffNama,
+        jumlah: c.jumlah,
+        kategori: "Pengembalian Kasbon Staf",
+        keterangan: c.keterangan || "Angsuran Pinjaman Pegawai",
+      }))
+    ),
   ].sort((a, b) => b.tanggal.localeCompare(a.tanggal));
 
   const filteredHistory = combinedHistory.filter((log) => {
