@@ -25,10 +25,16 @@ import {
   EyeOff,
   UserCheck,
   AlertCircle,
-  Database
+  Database,
+  FileText,
+  Printer,
+  Download,
+  ArrowRight
 } from "lucide-react";
 import { Siswa, Staff, UserAccount, SchoolSettings } from "../types";
 import { cleanPhoneNumber, getWhatsAppUrl } from "../utils/whatsapp";
+import { PanduanInstallPDFModal } from "./PanduanInstallPDFModal";
+import { VideoTutorialModal } from "./VideoTutorialModal";
 
 interface SecurityHostingSheetProps {
   siswa: Siswa[];
@@ -67,6 +73,8 @@ export default function SecurityHostingSheet({
   // Hosting Tab States
   const [hostingPlatform, setHostingPlatform] = useState<"hostinger" | "vercel" | "cpanel" | "vps" | "cloudrun">("hostinger");
   const [showDbSecret, setShowDbSecret] = useState(false);
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
 
   // SQL Database States
   const [dbType, setDbType] = useState<"mysql" | "postgresql">("mysql");
@@ -1032,7 +1040,7 @@ func main() {
                 {/* HOSTINGER SUBDOMAIN GUIDE */}
                 {hostingPlatform === "hostinger" && (
                   <div className="space-y-4 animate-fade-in">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                       <div>
                         <h3 className="text-sm font-bold text-purple-950 flex items-center">
                           <Globe className="w-4 h-4 mr-1.5 text-purple-600" />
@@ -1042,9 +1050,32 @@ func main() {
                           Langkah instan mengonlinekan web app di subdomain Hostinger (contoh: <strong className="text-purple-700">lpk.domainanda.com</strong>) menggunakan script auto-installer bawaan.
                         </p>
                       </div>
-                      <span className="text-[10px] font-mono font-bold bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full w-max">
-                        Pilihan Utama
-                      </span>
+
+                      <div className="flex items-center space-x-2 flex-wrap sm:flex-nowrap">
+                        <button
+                          onClick={() => setShowVideoModal(true)}
+                          className="px-3.5 py-1.5 bg-gradient-to-r from-purple-700 to-indigo-800 hover:from-purple-800 hover:to-indigo-900 text-white font-extrabold text-xs rounded-xl shadow-md transition flex items-center space-x-1.5 cursor-pointer ring-2 ring-purple-300"
+                        >
+                          <Cpu className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+                          <span>Tonton Video Tutorial</span>
+                        </button>
+                        <button
+                          onClick={() => setShowPdfModal(true)}
+                          className="px-3.5 py-1.5 bg-[#001f3f] hover:bg-slate-800 text-white font-bold text-xs rounded-xl shadow-sm transition flex items-center space-x-1.5 cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Unduh PDF</span>
+                        </button>
+                        <a
+                          href="/panduan-install-hostinger.html"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-xs rounded-xl transition flex items-center space-x-1 cursor-pointer"
+                        >
+                          <Printer className="w-3.5 h-3.5 text-purple-700" />
+                          <span>Cetak HTML</span>
+                        </a>
+                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 my-2">
@@ -1120,6 +1151,49 @@ func main() {
                             <p>https://lpk.domainanda.com/install.php</p>
                           </div>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-slate-200 space-y-3">
+                      <div className="bg-[#001f3f] text-white p-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <div>
+                          <span className="text-[10px] font-mono font-bold bg-amber-400 text-slate-950 px-2 py-0.5 rounded uppercase tracking-wider">
+                            Fitur CI/CD GitHub Actions
+                          </span>
+                          <h4 className="font-extrabold text-xs sm:text-sm mt-1">Opsi Deploy Otomatis via GitHub ke Hostinger Subdomain</h4>
+                          <p className="text-[11px] text-slate-300 mt-0.5">
+                            Setiap kali Anda me-push kode baru ke repository GitHub, GitHub Actions akan otomatis membendung & mengunggah file ke subdomain Hostinger (<code className="text-amber-300 font-mono">public_html/lpk</code>).
+                          </p>
+                        </div>
+                        <a
+                          href="/.github/workflows/deploy-hostinger.yml"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-3.5 py-2 bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs rounded-xl transition flex-shrink-0 flex items-center space-x-1"
+                        >
+                          <span>Lihat Workflow YAML</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs space-y-2">
+                        <p className="font-bold text-slate-900">Langkah Konfigurasi GitHub Actions ke Hostinger FTP:</p>
+                        <ol className="list-decimal pl-5 space-y-1.5 text-slate-600 text-[11px]">
+                          <li>
+                            Buka repository Anda di <strong>GitHub</strong> &rarr; pilih tab <strong>Settings</strong> &rarr; <strong>Secrets and variables</strong> &rarr; <strong>Actions</strong>.
+                          </li>
+                          <li>
+                            Tambahkan 3 akun rahasia (Repository Secrets) FTP Hostinger Anda:
+                            <ul className="list-disc pl-4 mt-1 font-mono text-[10px] text-purple-900 space-y-0.5">
+                              <li><strong className="text-slate-800">FTP_SERVER</strong> : (contoh: ftp.domainanda.com atau IP Server Hostinger)</li>
+                              <li><strong className="text-slate-800">FTP_USERNAME</strong> : (Username FTP Hostinger dari hPanel &gt; FTP Accounts)</li>
+                              <li><strong className="text-slate-800">FTP_PASSWORD</strong> : (Password akun FTP Hostinger Anda)</li>
+                            </ul>
+                          </li>
+                          <li>
+                            File workflow <code className="bg-slate-200 px-1 rounded font-mono font-bold text-slate-800">.github/workflows/deploy-hostinger.yml</code> sudah siap di repository project ini! Setiap push ke branch <code className="font-mono font-bold text-amber-700">main</code> akan langsung mengonlinekan subdomain otomatis.
+                          </li>
+                        </ol>
                       </div>
                     </div>
 
@@ -1714,6 +1788,8 @@ func main() {
         )}
 
       </div>
+      <PanduanInstallPDFModal isOpen={showPdfModal} onClose={() => setShowPdfModal(false)} />
+      <VideoTutorialModal isOpen={showVideoModal} onClose={() => setShowVideoModal(false)} />
     </div>
   );
 }

@@ -11,6 +11,25 @@ $zipFiles = glob('*.zip');
 $extracted = false;
 $msg = '';
 
+function moveFolderContents($source, $destination) {
+    if (!is_dir($source)) return false;
+    $files = scandir($source);
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $srcPath = $source . '/' . $file;
+        $destPath = $destination . '/' . $file;
+        if (is_dir($srcPath)) {
+            if (!is_dir($destPath)) @mkdir($destPath, 0755, true);
+            moveFolderContents($srcPath, $destPath);
+            @rmdir($srcPath);
+        } else {
+            @rename($srcPath, $destPath);
+        }
+    }
+    @rmdir($source);
+    return true;
+}
+
 if (isset($_POST['extract_file'])) {
     $targetZip = $_POST['extract_file'];
     if (file_exists($targetZip) && pathinfo($targetZip, PATHINFO_EXTENSION) === 'zip') {
@@ -21,6 +40,13 @@ if (isset($_POST['extract_file'])) {
             $extracted = true;
             $msg = "File '$targetZip' berhasil diekstrak!";
             
+            // Auto fix nested dist folder if user zipped the whole 'dist' folder
+            $nestedDist = __DIR__ . '/dist';
+            if (is_dir($nestedDist) && file_exists($nestedDist . '/index.html')) {
+                moveFolderContents($nestedDist, __DIR__);
+                $msg .= " File dari subfolder 'dist/' berhasil dipindahkan otomatis ke root subdomain untuk mencegah layar putih!";
+            }
+
             // Delete zip file after extract if requested
             if (isset($_POST['delete_zip'])) {
                 @unlink($targetZip);

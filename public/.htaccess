@@ -1,3 +1,7 @@
+# ====================================================================
+# Hostinger Subdomain - High Performance & SPA Router .htaccess
+# ====================================================================
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
@@ -5,4 +9,38 @@
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule . /index.html [L]
+</IfModule>
+
+# Prevent Directory Browsing
+Options -Indexes
+
+# MIME Types Fix for Modern Web Assets
+<IfModule mod_mime.c>
+  AddType application/javascript js mjs
+  AddType text/css css
+  AddType image/svg+xml svg
+  AddType application/json json
+  AddType font/woff2 woff2
+</IfModule>
+
+# Enable Gzip / Deflate Compression
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
+</IfModule>
+
+# Cache-Control & Headers
+<IfModule mod_headers.c>
+  Header set Access-Control-Allow-Origin "*"
+  
+  # Prevent caching index.html to ensure users always receive latest app update
+  <FilesMatch "\.(html|htm)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires 0
+  </FilesMatch>
+
+  # Cache static hashed JS/CSS assets for performance
+  <FilesMatch "\.(js|css|woff2|png|jpg|jpeg|svg|ico)$">
+    Header set Cache-Control "max-age=31536000, public"
+  </FilesMatch>
 </IfModule>

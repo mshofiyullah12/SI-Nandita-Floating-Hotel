@@ -305,7 +305,7 @@ export default function ExcelDashboard({
                       <span className="font-semibold text-slate-700">{formatRupiah(inflowSpp)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>• Pend. Lain:</span>
+                      <span>• Pend. Lain (Sewa, Donasi, Kemitraan):</span>
                       <span className="font-semibold text-slate-700">{formatRupiah(inflowLain)}</span>
                     </div>
                     {inflowUtang > 0 && (

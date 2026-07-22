@@ -228,10 +228,12 @@ export default function PendapatanPengeluaranSheet({
   const filteredHistory = combinedHistory.filter((log) => {
     const matchesSearch = log.subjek.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           log.keterangan.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          log.id.toLowerCase().includes(searchQuery.toLowerCase());
+                          log.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          log.kategori.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTipe = catFilter === "Semua" || 
                         (catFilter === "Uang Sekolah" && log.tipe === "Uang Sekolah") ||
-                        (catFilter === "Pendapatan Lain" && log.tipe === "Pendapatan Lain");
+                        (catFilter === "Pendapatan Lain" && log.tipe === "Pendapatan Lain") ||
+                        log.kategori === catFilter;
     return matchesSearch && matchesTipe;
   });
 
@@ -480,7 +482,14 @@ export default function PendapatanPengeluaranSheet({
             {activeSubTab === "riwayat" && (
               <>
                 <option value="Uang Sekolah">Uang Pendidikan Siswa (SPP)</option>
-                <option value="Pendapatan Lain">Pendapatan Non-SPP</option>
+                <option value="Pendapatan Lain">Semua Pendapatan Non-SPP</option>
+                <optgroup label="Kategori Pendapatan Lain-lain">
+                  {jenisPendapatan.map((c) => (
+                    <option key={c} value={c}>
+                      ↳ {c}
+                    </option>
+                  ))}
+                </optgroup>
               </>
             )}
           </select>

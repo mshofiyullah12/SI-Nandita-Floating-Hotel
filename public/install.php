@@ -9,13 +9,43 @@ header('Content-Type: text/html; charset=utf-8');
 $currentDir = __DIR__;
 $htaccessFile = $currentDir . '/.htaccess';
 $indexFile = $currentDir . '/index.html';
+$nestedDistDir = $currentDir . '/dist';
 
 $action = isset($_GET['action']) ? $_GET['action'] : '';
 $msg = '';
 $msgType = 'info';
 
+function moveSubfolderContents($source, $destination) {
+    if (!is_dir($source)) return false;
+    $files = scandir($source);
+    foreach ($files as $file) {
+        if ($file === '.' || $file === '..') continue;
+        $srcPath = $source . '/' . $file;
+        $destPath = $destination . '/' . $file;
+        if (is_dir($srcPath)) {
+            if (!is_dir($destPath)) @mkdir($destPath, 0755, true);
+            moveSubfolderContents($srcPath, $destPath);
+            @rmdir($srcPath);
+        } else {
+            @rename($srcPath, $destPath);
+        }
+    }
+    @rmdir($source);
+    return true;
+}
+
 // Action Handler
-if ($action === 'create_htaccess') {
+if ($action === 'fix_nested_dist') {
+    if (is_dir($nestedDistDir)) {
+        if (moveSubfolderContents($nestedDistDir, $currentDir)) {
+            $msg = "Solusi Layar Putih Berhasil! Semua file dari subfolder 'dist/' telah dipindahkan ke folder utama subdomain.";
+            $msgType = "success";
+        } else {
+            $msg = "Gagal memindahkan file. Pastikan izin folder di Hostinger sudah disetel chmod 755.";
+            $msgType = "error";
+        }
+    }
+} elseif ($action === 'create_htaccess') {
     $htaccessContent = "<IfModule mod_rewrite.c>\n";
     $htaccessContent .= "  RewriteEngine On\n";
     $htaccessContent .= "  RewriteBase /\n";
@@ -51,6 +81,7 @@ if ($action === 'create_htaccess') {
 
 // System Checks
 $hasIndex = file_exists($indexFile);
+$hasNestedDist = is_dir($nestedDistDir) && file_exists($nestedDistDir . '/index.html');
 $hasHtaccess = file_exists($htaccessFile);
 $phpVersion = phpversion();
 $serverSoftware = $_SERVER['SERVER_SOFTWARE'] ?? 'Hostinger Web Server';
@@ -76,7 +107,7 @@ $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" :
         <div class="bg-[#001f3f] p-6 text-white text-center relative">
             <div class="inline-block p-3 bg-amber-400/20 rounded-2xl mb-3 border border-amber-400/30">
                 <svg class="w-8 h-8 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 2 0 012 2v6a2 2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                 </svg>
             </div>
             <h1 class="text-xl md:text-2xl font-extrabold">Auto-Installer Subdomain Hostinger</h1>
@@ -111,6 +142,24 @@ $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" :
             <div class="space-y-3">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">Pemeriksaan Komponen App</h3>
                 
+                <!-- Nested Dist Warning -->
+                <?php if ($hasNestedDist): ?>
+                    <div class="p-4 rounded-2xl border bg-amber-50 border-amber-200 flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-xs">
+                                !
+                            </div>
+                            <div>
+                                <p class="font-bold text-xs text-amber-900">Terdeteksi File Di Dalam Subfolder 'dist/'</p>
+                                <p class="text-[11px] text-amber-700">Inilah penyebab utama **layar putih (blank page)**! File harus dipindahkan ke root subdomain.</p>
+                            </div>
+                        </div>
+                        <a href="?action=fix_nested_dist" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs rounded-xl shadow-sm transition">
+                            Perbaiki Layar Putih Instan
+                        </a>
+                    </div>
+                <?php endif; ?>
+
                 <!-- Index.html Check -->
                 <div class="p-4 rounded-2xl border flex items-center justify-between <?php echo $hasIndex ? 'bg-emerald-50/50 border-emerald-200' : 'bg-rose-50/50 border-rose-200'; ?>">
                     <div class="flex items-center space-x-3">
@@ -119,7 +168,7 @@ $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" :
                         </div>
                         <div>
                             <p class="font-bold text-xs text-slate-800">File Utama (index.html)</p>
-                            <p class="text-[11px] text-slate-500"><?php echo $hasIndex ? 'Tersedia di folder subdomain' : 'File index.html tidak ditemukan!'; ?></p>
+                            <p class="text-[11px] text-slate-500"><?php echo $hasIndex ? 'Tersedia di folder utama subdomain' : 'File index.html tidak ditemukan di root subdomain!'; ?></p>
                         </div>
                     </div>
                     <span class="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full <?php echo $hasIndex ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'; ?>">

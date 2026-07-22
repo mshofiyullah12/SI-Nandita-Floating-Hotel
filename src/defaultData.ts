@@ -688,6 +688,14 @@ export const initialPendapatanLain: PendapatanLain[] = [
     jumlah: 1800000,
     keterangan: "Ujian kompetensi kuliner mandiri untuk 3 koki restoran lokal",
     penerima: "Siti Rahmawati"
+  },
+  {
+    id: "INC-004",
+    tanggal: "2026-07-15",
+    kategori: "Donasi & Hibah",
+    jumlah: 2500000,
+    keterangan: "Donasi hibah pengembangan fasilitas simulator kapal pesiar dari Alumni",
+    penerima: "Nandita Wahyuni"
   }
 ];
 

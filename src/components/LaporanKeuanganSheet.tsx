@@ -30,10 +30,19 @@ export default function LaporanKeuanganSheet({
   const isDateInPeriod = (dateStr: string) => {
     if (isAllTime) return true;
     if (!dateStr || dateStr === "-") return false;
-    // Format is YYYY-MM-DD
-    const parts = dateStr.split("-");
+    // Format can be YYYY-MM-DD, YYYY/MM/DD, ISO string YYYY-MM-DDTHH:mm:ss, or DD-MM-YYYY
+    const cleanDate = dateStr.split("T")[0].replace(/\//g, "-");
+    const parts = cleanDate.split("-");
     if (parts.length < 2) return false;
-    return parts[0] === filterYear && parts[1] === filterMonth;
+
+    let year = parts[0];
+    let month = parts[1];
+    if (year.length === 2 && parts[2]?.length === 4) {
+      year = parts[2];
+      month = parts[1];
+    }
+
+    return year === filterYear && parseInt(month, 10) === parseInt(filterMonth, 10);
   };
 
   // Helper to format currency
@@ -51,9 +60,16 @@ export default function LaporanKeuanganSheet({
     .filter((p) => isDateInPeriod(p.tanggalBayar))
     .reduce((acc, p) => acc + p.jumlahBayar, 0);
 
-  const inflowOther = pendapatanLain
-    .filter((p) => isDateInPeriod(p.tanggal))
-    .reduce((acc, p) => acc + p.jumlah, 0);
+  const pendapatanLainFiltered = pendapatanLain.filter((p) => isDateInPeriod(p.tanggal));
+
+  const inflowOther = pendapatanLainFiltered.reduce((acc, p) => acc + p.jumlah, 0);
+
+  // Group filtered Pendapatan Lain by Category (Sewa, Donasi, Kemitraan, etc.)
+  const inflowOtherBreakdown = pendapatanLainFiltered.reduce((acc, item) => {
+    const cat = item.kategori || "Lain-lain";
+    acc[cat] = (acc[cat] || 0) + item.jumlah;
+    return acc;
+  }, {} as Record<string, number>);
 
   // Get employee loan installments (cicilan) cash inflows
   const inflowLoanPaybacks = utangList.reduce((acc, u) => {
@@ -128,9 +144,20 @@ export default function LaporanKeuanganSheet({
             <td style="padding: 10px; text-align: right; font-family: monospace;">${formatRupiah(inflowTuition)}</td>
           </tr>
           <tr>
-            <td style="padding: 10px; padding-left: 25px;">Pendapatan Lain-lain (Sewa, Donasi, Kemitraan)</td>
-            <td style="padding: 10px; text-align: right; font-family: monospace;">${formatRupiah(inflowOther)}</td>
+            <td style="padding: 10px; padding-left: 25px; font-weight: bold; color: #1e293b;">Pendapatan Lain-lain (Sewa, Donasi, Kemitraan)</td>
+            <td style="padding: 10px; text-align: right; font-family: monospace; font-weight: bold; color: #1e293b;">${formatRupiah(inflowOther)}</td>
           </tr>
+          ${Object.entries(inflowOtherBreakdown).length > 0 ? Object.entries(inflowOtherBreakdown).map(([cat, amount]) => `
+            <tr style="color: #475569; font-size: 11px;">
+              <td style="padding: 3px 10px 3px 45px;">↳ ${cat}</td>
+              <td style="padding: 3px 10px; text-align: right; font-family: monospace;">${formatRupiah(amount)}</td>
+            </tr>
+          `).join('') : `
+            <tr style="color: #94a3b8; font-size: 11px; font-style: italic;">
+              <td style="padding: 3px 10px 3px 45px;">↳ Belum ada transaksi di periode ini</td>
+              <td style="padding: 3px 10px; text-align: right; font-family: monospace;">Rp 0</td>
+            </tr>
+          `}
           <tr>
             <td style="padding: 10px; padding-left: 25px;">Penerimaan Pengembalian Cicilan Pegawai</td>
             <td style="padding: 10px; text-align: right; font-family: monospace;">${formatRupiah(inflowLoanPaybacks)}</td>
@@ -189,9 +216,15 @@ export default function LaporanKeuanganSheet({
             <td style="padding: 10px; text-align: right; font-family: monospace;">${formatRupiah(revTuition)}</td>
           </tr>
           <tr>
-            <td style="padding: 10px; padding-left: 25px;">Pendapatan Non-SPP (Sewa & Kemitraan)</td>
-            <td style="padding: 10px; text-align: right; font-family: monospace;">${formatRupiah(revOther)}</td>
+            <td style="padding: 10px; padding-left: 25px; font-weight: bold; color: #1e293b;">Pendapatan Non-SPP (Sewa, Donasi, Kemitraan)</td>
+            <td style="padding: 10px; text-align: right; font-family: monospace; font-weight: bold; color: #1e293b;">${formatRupiah(revOther)}</td>
           </tr>
+          ${Object.entries(inflowOtherBreakdown).length > 0 ? Object.entries(inflowOtherBreakdown).map(([cat, amount]) => `
+            <tr style="color: #475569; font-size: 11px;">
+              <td style="padding: 3px 10px 3px 45px;">↳ ${cat}</td>
+              <td style="padding: 3px 10px; text-align: right; font-family: monospace;">${formatRupiah(amount)}</td>
+            </tr>
+          `).join('') : ''}
           <tr style="font-weight: bold; border-top: 1px solid #ddd; background-color: #f8fafc;">
             <td style="padding: 10px; padding-left: 15px;">TOTAL PENDAPATAN OPERASIONAL</td>
             <td style="padding: 10px; text-align: right; font-family: monospace; color: #10b981;">${formatRupiah(totalRevenues)}</td>
@@ -496,10 +529,28 @@ export default function LaporanKeuanganSheet({
                   <td className="py-2.5 px-4 pl-8 text-slate-700 font-medium">Penerimaan SPP & Biaya Pendidikan Siswa</td>
                   <td className="py-2.5 px-4 text-right font-mono font-medium text-slate-800">{formatRupiah(inflowTuition)}</td>
                 </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="py-2.5 px-4 pl-8 text-slate-700 font-medium">Pendapatan Lain-lain (Sewa, Donasi, Kemitraan)</td>
-                  <td className="py-2.5 px-4 text-right font-mono font-medium text-slate-800">{formatRupiah(inflowOther)}</td>
+                <tr className="hover:bg-slate-50/50 bg-slate-50/30">
+                  <td className="py-2.5 px-4 pl-8 text-slate-900 font-bold">Pendapatan Lain-lain (Sewa, Donasi, Kemitraan)</td>
+                  <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900">{formatRupiah(inflowOther)}</td>
                 </tr>
+                {Object.entries(inflowOtherBreakdown).length > 0 ? (
+                  Object.entries(inflowOtherBreakdown).map(([cat, amount]) => (
+                    <tr key={cat} className="hover:bg-slate-100/50 text-slate-600">
+                      <td className="py-1.5 px-4 pl-12 text-[11px] font-medium">
+                        <span className="text-emerald-600 font-bold mr-1.5">↳</span>
+                        <span>{cat}</span>
+                      </td>
+                      <td className="py-1.5 px-4 text-right font-mono text-[11px] font-medium text-slate-700">
+                        {formatRupiah(amount)}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr className="text-slate-400 italic">
+                    <td className="py-1.5 px-4 pl-12 text-[11px]">↳ Belum ada pendapatan lain di periode ini</td>
+                    <td className="py-1.5 px-4 text-right font-mono text-[11px]">Rp 0</td>
+                  </tr>
+                )}
                 <tr className="hover:bg-slate-50/50">
                   <td className="py-2.5 px-4 pl-8 text-slate-700 font-medium">Penerimaan Pengembalian Cicilan Pegawai</td>
                   <td className="py-2.5 px-4 text-right font-mono font-medium text-slate-800">{formatRupiah(inflowLoanPaybacks)}</td>
@@ -577,10 +628,23 @@ export default function LaporanKeuanganSheet({
                   <td className="py-2.5 px-4 pl-8 text-slate-700 font-medium">Pendapatan SPP & Uang Sekolah Siswa</td>
                   <td className="py-2.5 px-4 text-right font-mono font-medium text-slate-800">{formatRupiah(revTuition)}</td>
                 </tr>
-                <tr className="hover:bg-slate-50/50">
-                  <td className="py-2.5 px-4 pl-8 text-slate-700 font-medium">Pendapatan Non-SPP (Kemitraan, Sewa Ruang, dll)</td>
-                  <td className="py-2.5 px-4 text-right font-mono font-medium text-slate-800">{formatRupiah(revOther)}</td>
+                <tr className="hover:bg-slate-50/50 bg-slate-50/30">
+                  <td className="py-2.5 px-4 pl-8 text-slate-900 font-bold">Pendapatan Non-SPP (Sewa, Donasi, Kemitraan)</td>
+                  <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900">{formatRupiah(revOther)}</td>
                 </tr>
+                {Object.entries(inflowOtherBreakdown).length > 0 && (
+                  Object.entries(inflowOtherBreakdown).map(([cat, amount]) => (
+                    <tr key={cat} className="hover:bg-slate-100/50 text-slate-600">
+                      <td className="py-1.5 px-4 pl-12 text-[11px] font-medium">
+                        <span className="text-emerald-600 font-bold mr-1.5">↳</span>
+                        <span>{cat}</span>
+                      </td>
+                      <td className="py-1.5 px-4 text-right font-mono text-[11px] font-medium text-slate-700">
+                        {formatRupiah(amount)}
+                      </td>
+                    </tr>
+                  ))
+                )}
                 <tr className="bg-emerald-50/10 font-bold">
                   <td className="py-3 px-4 pl-6 text-emerald-700">TOTAL REVENUES</td>
                   <td className="py-3 px-4 text-right font-mono text-emerald-700">{formatRupiah(totalRevenues)}</td>
