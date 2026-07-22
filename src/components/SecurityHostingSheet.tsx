@@ -65,7 +65,7 @@ export default function SecurityHostingSheet({
   const [gatewayMethod, setGatewayMethod] = useState<"direct" | "webhook">("direct");
 
   // Hosting Tab States
-  const [hostingPlatform, setHostingPlatform] = useState<"vercel" | "cpanel" | "vps" | "cloudrun">("vercel");
+  const [hostingPlatform, setHostingPlatform] = useState<"hostinger" | "vercel" | "cpanel" | "vps" | "cloudrun">("hostinger");
   const [showDbSecret, setShowDbSecret] = useState(false);
 
   // SQL Database States
@@ -976,6 +976,16 @@ func main() {
                 <span className="text-[10px] font-bold font-mono text-slate-400 uppercase tracking-wider block mb-2">Pilih Server Penyedia</span>
                 
                 <button
+                  onClick={() => setHostingPlatform("hostinger")}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition flex items-center space-x-2.5 ${
+                    hostingPlatform === "hostinger" ? "bg-[#001f3f] text-white shadow-md ring-2 ring-amber-400" : "hover:bg-slate-100 text-slate-700"
+                  }`}
+                >
+                  <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+                  <span>Hostinger (Subdomain + Auto-Installer)</span>
+                </button>
+
+                <button
                   onClick={() => setHostingPlatform("vercel")}
                   className={`w-full text-left px-3.5 py-2.5 rounded-xl text-xs font-bold transition flex items-center space-x-2.5 ${
                     hostingPlatform === "vercel" ? "bg-[#001f3f] text-white shadow-md" : "hover:bg-slate-100 text-slate-700"
@@ -1019,7 +1029,108 @@ func main() {
               {/* Detailed Platform Guide Panel */}
               <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                 
-                {/* VERCEL GUIDE */}
+                {/* HOSTINGER SUBDOMAIN GUIDE */}
+                {hostingPlatform === "hostinger" && (
+                  <div className="space-y-4 animate-fade-in">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                      <div>
+                        <h3 className="text-sm font-bold text-purple-950 flex items-center">
+                          <Globe className="w-4 h-4 mr-1.5 text-purple-600" />
+                          Panduan Hosting Subdomain Hostinger (hPanel) + File Auto-Installer
+                        </h3>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          Langkah instan mengonlinekan web app di subdomain Hostinger (contoh: <strong className="text-purple-700">lpk.domainanda.com</strong>) menggunakan script auto-installer bawaan.
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold bg-purple-100 text-purple-800 px-2.5 py-1 rounded-full w-max">
+                        Pilihan Utama
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 my-2">
+                      <div className="bg-purple-50/70 border border-purple-200/80 rounded-2xl p-3.5">
+                        <div className="flex items-center space-x-2 font-bold text-xs text-purple-900 mb-1">
+                          <span className="w-2 h-2 rounded-full bg-purple-600"></span>
+                          <span>1. Script Auto-Installer (install.php)</span>
+                        </div>
+                        <p className="text-[11px] text-purple-800 leading-relaxed">
+                          Terpenuhi otomatis di folder build! Berfungsi mengecek izin folder, memeriksa ketersediaan index.html, serta membuat file <code className="bg-purple-100 px-1 rounded font-mono font-bold">.htaccess</code> otomatis di Hostinger.
+                        </p>
+                        <a href="/install.php" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center text-[10px] font-bold text-purple-700 hover:text-purple-900 underline">
+                          Preview install.php di browser &rarr;
+                        </a>
+                      </div>
+
+                      <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-3.5">
+                        <div className="flex items-center space-x-2 font-bold text-xs text-amber-900 mb-1">
+                          <span className="w-2 h-2 rounded-full bg-amber-600"></span>
+                          <span>2. Script Auto-Unzip (deploy.php)</span>
+                        </div>
+                        <p className="text-[11px] text-amber-800 leading-relaxed">
+                          Cukup unggah <code className="bg-amber-100 px-1 rounded font-mono font-bold">dist.zip</code> + <code className="bg-amber-100 px-1 rounded font-mono font-bold">deploy.php</code> ke folder subdomain Hostinger, lalu buka link <code className="font-mono">subdomain.com/deploy.php</code> untuk ekstrak otomatis tanpa repot!
+                        </p>
+                        <a href="/deploy.php" target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center text-[10px] font-bold text-amber-700 hover:text-amber-900 underline">
+                          Preview deploy.php di browser &rarr;
+                        </a>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3.5 text-xs text-slate-700 leading-relaxed pt-2">
+                      <div className="flex items-start space-x-2.5">
+                        <div className="bg-purple-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">1</div>
+                        <div>
+                          <p className="font-bold text-slate-900">Buat Subdomain di hPanel Hostinger</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Masuk ke <strong>hPanel Hostinger</strong> &rarr; pilih menu <strong>Domains / Subdomains</strong>. Ketik nama subdomain Anda (misal: <code className="font-bold text-purple-800">lpk</code>) lalu klik <strong>Create Subdomain</strong>. Folder otomatis dibuat di <code className="bg-slate-100 px-1 rounded font-mono text-slate-800">public_html/lpk</code>.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-2.5">
+                        <div className="bg-purple-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">2</div>
+                        <div>
+                          <p className="font-bold text-slate-900">Kompres Folder Build (dist.zip)</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Jalankan perintah build di lokal komputer / ekspor file dari AI Studio (`dist/`). Didalam folder `dist/` sudah termasuk file <code className="font-bold text-purple-800">install.php</code>, <code className="font-bold text-purple-800">deploy.php</code>, dan <code className="font-bold text-purple-800">.htaccess</code>. Kompres seluruh isi folder `dist/` menjadi <code className="font-bold">dist.zip</code>.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-2.5">
+                        <div className="bg-purple-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">3</div>
+                        <div>
+                          <p className="font-bold text-slate-900">Unggah ke Hostinger File Manager</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Buka Hostinger <strong>File Manager</strong> &rarr; navigasi ke folder subdomain Anda (<code className="bg-slate-100 px-1 rounded font-mono text-slate-800">public_html/lpk</code>) &rarr; Upload file <code className="font-bold">dist.zip</code>.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start space-x-2.5">
+                        <div className="bg-purple-600 text-white rounded-full w-5 h-5 flex items-center justify-center font-bold text-[10px] flex-shrink-0 mt-0.5">4</div>
+                        <div>
+                          <p className="font-bold text-slate-900">Jalankan Auto-Installer & Auto-Deployer</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">
+                            Akses link di browser Anda:
+                          </p>
+                          <div className="bg-slate-900 text-slate-200 font-mono text-[10px] p-3 rounded-xl mt-1 space-y-1.5">
+                            <p className="text-amber-300">// Step A: Ekstrak zip instan di Hostinger</p>
+                            <p>https://lpk.domainanda.com/deploy.php</p>
+                            <p className="text-purple-300 pt-1">// Step B: Jalankan verifikasi & .htaccess installer</p>
+                            <p>https://lpk.domainanda.com/install.php</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-[10px] text-slate-600 flex items-center justify-between">
+                      <span> File <code className="font-bold text-purple-800">.htaccess</code> sudah disetel khusus agar SPA React tidak error 404 saat pengguna me-refresh halaman subdomain.</span>
+                      <a href="/.htaccess" target="_blank" rel="noreferrer" className="text-purple-700 font-bold hover:underline ml-2 flex-shrink-0">
+                        Lihat .htaccess &rarr;
+                      </a>
+                    </div>
+                  </div>
+                )}
                 {hostingPlatform === "vercel" && (
                   <div className="space-y-4 animate-fade-in">
                     <div>
